@@ -1,0 +1,44 @@
+<%- include('../layout', { body: `
+<div style="max-width: 720px; margin: 0 auto;">
+  <div class="sf-page-header">
+    <div>
+      <div class="sf-section-label">Sosyal</div>
+      <h2>Arkadaşlar</h2>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="sf-friend-search">
+    <form method="GET" action="/friends" class="sf-search-form">
+      <input type="text" name="q" value="${q}" placeholder="Kullanıcı ara..." class="sf-input" style="margin-bottom: 0;">
+      <button type="submit" class="sf-btn sf-btn-sm">Ara</button>
+    </form>
+  </div>
+
+  ${q.length >= 2 && searchResults.length > 0 ? `
+  <div class="sf-section-label" style="margin-top: 24px;">Arama Sonuçları</div>
+  <div class="sf-friend-list">
+    ${searchResults.map(u => '<div class="sf-friend-row"><span>@' + u.username + '</span><form method="POST" action="/friends/request"><input type="hidden" name="username" value="' + u.username + '"><button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">İstek Gönder</button></form></div>').join('')}
+  </div>
+  ` : q.length >= 2 ? '<p style="color: var(--text-muted); margin-top: 16px;">Sonuç bulunamadı.</p>' : ''}
+
+  ${pending.length > 0 ? `
+  <div class="sf-section-divider"></div>
+  <div class="sf-section-label">Bekleyen İstekler</div>
+  <div class="sf-friend-list">
+    ${pending.map(p => '<div class="sf-friend-row"><span>@' + (p.sender ? p.sender.username : 'Bilinmeyen') + '</span><div class="sf-friend-actions"><form method="POST" action="/friends/accept/' + p.id + '" style="display:inline;"><button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Kabul</button></form><form method="POST" action="/friends/reject/' + p.id + '" style="display:inline;"><button type="submit" class="sf-btn sf-btn-danger sf-btn-sm">Reddet</button></form></div></div>').join('')}
+  </div>
+  ` : ''}
+
+  <div class="sf-section-divider"></div>
+  <div class="sf-section-label">Arkadaşlarım</div>
+
+  ${friends.length === 0 ? '<p style="color: var(--text-muted);">Henüz arkadaşın yok. Yukarıdan kullanıcı ara ve istek gönder!</p>' : `
+  <div class="sf-friend-list">
+    ${friends.map(f => {
+      return '<div class="sf-friend-row"><span>@' + f.friend.username + '</span><div class="sf-friend-actions"><a href="/messages/' + f.friend.id + '" class="sf-btn sf-btn-sm">Mesaj</a><form method="POST" action="/friends/' + f.friendshipId + '/remove" style="display:inline;" onsubmit="return confirm(\'Arkadaşlıktan çıkarmak istediğine emin misin?\')"><button type="submit" class="sf-btn sf-btn-danger sf-btn-sm">Çıkar</button></form></div></div>';
+    }).join('')}
+  </div>
+  `}
+</div>
+` }) %>

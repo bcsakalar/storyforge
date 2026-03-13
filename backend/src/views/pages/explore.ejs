@@ -1,0 +1,40 @@
+<%- include('../layout', { body: `
+<div style="max-width: 800px; margin: 0 auto;">
+  <div class="sf-page-header">
+    <div>
+      <div class="sf-section-label">Keşfet</div>
+      <h2>Herkese Açık Hikayeler</h2>
+    </div>
+    <div class="sf-sort-tabs">
+      <a href="/explore?sort=popular" class="sf-tab ${sort === 'popular' ? 'active' : ''}">Popüler</a>
+      <a href="/explore?sort=newest" class="sf-tab ${sort === 'newest' ? 'active' : ''}">En Yeni</a>
+    </div>
+  </div>
+
+  ${stories.length === 0 ? '<div class="sf-empty"><h3>Henüz paylaşılan hikaye yok</h3><p>İlk hikayeni paylaşan sen ol!</p></div>' : `
+  <div class="sf-stories-grid">
+    ${stories.map(s => `
+    <a href="/shared/${s.id}" class="sf-story-row">
+      <div class="sf-story-info">
+        <h4>${s.story.title.length > 60 ? s.story.title.substring(0, 60) + '...' : s.story.title}</h4>
+        <div class="sf-story-meta">
+          <span>@${s.user.username}</span>
+          <span>${s.story.genre.toUpperCase()}</span>
+          <span>❤️ ${s._count.likes}</span>
+          <span>💬 ${s._count.comments}</span>
+        </div>
+      </div>
+    </a>
+    `).join('')}
+  </div>
+
+  ${totalPages > 1 ? `
+  <div class="sf-pagination">
+    ${page > 1 ? '<a href="/explore?sort=' + sort + '&page=' + (page - 1) + '" class="sf-btn sf-btn-sm">&larr; Önceki</a>' : ''}
+    <span class="sf-page-info">Sayfa ${page} / ${totalPages}</span>
+    ${page < totalPages ? '<a href="/explore?sort=' + sort + '&page=' + (page + 1) + '" class="sf-btn sf-btn-sm">Sonraki &rarr;</a>' : ''}
+  </div>
+  ` : ''}
+  `}
+</div>
+` }) %>

@@ -1,0 +1,201 @@
+<%- include('../layout', { body: `
+<div style="max-width: 720px; margin: 0 auto;">
+  <a href="/coop" class="sf-back">&larr; Co-op Lobiye Dön</a>
+  <input type="hidden" id="coopSessionId" value="${session.id}">
+
+  ${flashMessage ? '<div class="sf-flash-warning" style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; color: #eab308; font-size: 0.9rem;">⚠️ ' + flashMessage + '</div>' : ''}
+
+  <div class="sf-story-header">
+    <div class="sf-section-label">CO-OP &middot; ${session.story.genre.toUpperCase()} &middot; ${session.status === 'ACTIVE' ? 'AKTİF' : session.status === 'COMPLETED' ? 'TAMAMLANDI' : session.status === 'WAITING' ? 'BEKLENİYOR' : session.status}</div>
+    <h2>${session.story.title}</h2>
+    <div class="sf-story-meta" style="margin-top: 8px;">
+      <span>👤 @${session.host.username}</span>
+      <span>&</span>
+      <span>👤 @${session.guest ? session.guest.username : 'Bekleniyor...'}</span>
+      ${session.status === 'ACTIVE' ? '<span class="sf-turn-badge">Sıra: ' + (session.currentTurn === 1 ? '@' + session.host.username : '@' + (session.guest ? session.guest.username : '?')) + '</span>' : ''}
+    </div>
+  </div>
+
+  <!-- Action Bar -->
+  ${session.status === 'ACTIVE' || session.status === 'COMPLETED' ? `
+  <div class="sf-toolbar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+    <a href="/coop/${session.id}/export/pdf" class="sf-btn sf-btn-sm">📄 PDF İndir</a>
+    <form method="POST" action="/coop/${session.id}/share"><button type="submit" class="sf-btn sf-btn-sm">🔗 Paylaş</button></form>
+    <button type="button" class="sf-btn sf-btn-sm" onclick="loadCoopRecap()">📖 Özet</button>
+    <button type="button" class="sf-btn sf-btn-sm" onclick="loadCoopTree()">🌳 Hikaye Ağacı</button>
+  </div>
+  ` : ''}
+
+  <div id="storyContainer">
+    ${session.story.chapters.map((chapter, index) => {
+      const isLastChapter = index === session.story.chapters.length - 1;
+      const isMyTurn = (session.currentTurn === 1 && currentUserId === session.hostUserId) || (session.currentTurn === 2 && currentUserId === session.guestUserId);
+      return `
+      <div class="sf-chapter">
+        <div class="sf-chapter-num">Bölüm ${chapter.chapterNumber}</div>
+        <div class="sf-chapter-text">
+          ${chapter.content.split('\\n').map(p => p.trim() ? '<p>' + p.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' : '').join('')}
+        </div>
+
+        ${chapter.selectedChoice !== null ? `
+          <div class="sf-selected-choice">
+            ✓ ${(chapter.choices.find(c => c.id === chapter.selectedChoice) || {}).text || ''}
+          </div>
+        ` : isLastChapter && session.status === 'ACTIVE' ? (isMyTurn ? `
+          <div class="sf-choices" id="choicesSection">
+            <h5>Ne yapacaksın?</h5>
+            ${chapter.choices.map(choice => `
+              <form method="POST" action="/coop/${session.id}/choose" class="sf-choice-form">
+                <input type="hidden" name="choiceId" value="${choice.id}">
+                <button type="submit" class="sf-choice-btn">
+                  <span class="num">${choice.id}.</span>${choice.text}
+                </button>
+              </form>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="sf-choices" style="opacity: 0.5; pointer-events: none;">
+            <h5>⏳ Sıranı bekle — ${session.currentTurn === 1 ? '@' + session.host.username : '@' + (session.guest ? session.guest.username : '?')} oynuyor</h5>
+            ${chapter.choices.map(choice => `
+              <div class="sf-choice-btn" style="cursor: default;">
+                <span class="num">${choice.id}.</span>${choice.text}
+              </div>
+            `).join('')}
+          </div>
+        `) : ''}
+      </div>`;
+    }).join('')}
+  </div>
+
+  <!-- Loading Indicator -->
+  <div id="loadingIndicator" class="sf-loading" style="display: none;">
+    <div class="sf-spinner"></div>
+    <p>Hikaye devam ediyor...</p>
+  </div>
+
+  ${session.status === 'WAITING' ? '<div class="sf-empty"><h3>Arkadaşın bekleniyor...</h3><p>Arkadaşın daveti kabul ettiğinde hikaye başlayacak.</p></div>' : ''}
+
+  <!-- Characters Section -->
+  ${session.status === 'ACTIVE' || session.status === 'COMPLETED' ? `
+  <div class="sf-section-divider" style="margin-top: 24px;"></div>
+  <div class="sf-section-label">Karakterler</div>
+  <div id="characterList" class="sf-character-list">
+    ${(session.story.characters || []).map(ch => `
+    <div class="sf-character-card" data-char-id="${ch.id}">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div>
+          <strong>${ch.name}</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">@${ch.user ? ch.user.username : '?'}</div>
+          ${ch.personality ? '<div style="font-size: 0.85rem; margin-top: 4px;">' + ch.personality + '</div>' : ''}
+          ${ch.appearance ? '<div style="font-size: 0.85rem; color: var(--text-muted);">' + ch.appearance + '</div>' : ''}
+        </div>
+        ${ch.userId === currentUserId ? '<form method="POST" action="/coop/' + session.id + '/characters/' + ch.id + '/delete" style="margin: 0;"><button type="submit" class="sf-btn sf-btn-sm" style="color: #ef4444; border-color: #ef4444; padding: 2px 8px; font-size: 0.75rem;">Sil</button></form>' : ''}
+      </div>
+    </div>
+    `).join('')}
+  </div>
+  ${session.status === 'ACTIVE' ? `
+  <form method="POST" action="/coop/${session.id}/characters" class="sf-character-form" style="margin-top: 12px;">
+    <input type="text" name="name" placeholder="Karakter adı" class="sf-input" required maxlength="50" style="margin-bottom: 6px;">
+    <input type="text" name="personality" placeholder="Kişilik (opsiyonel)" class="sf-input" maxlength="200" style="margin-bottom: 6px;">
+    <input type="text" name="appearance" placeholder="Görünüm (opsiyonel)" class="sf-input" maxlength="200" style="margin-bottom: 6px;">
+    <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Karakter Ekle</button>
+  </form>
+  ` : ''}
+  ` : ''}
+
+  <!-- Recap Modal -->
+  <div id="recapModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center;">
+    <div style="background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0;">Hikaye Özeti</h3>
+        <button onclick="document.getElementById('recapModal').style.display='none'" class="sf-btn sf-btn-sm">✕</button>
+      </div>
+      <div id="recapContent" style="white-space: pre-wrap; line-height: 1.7;"></div>
+    </div>
+  </div>
+
+  <!-- Tree Modal -->
+  <div id="treeModal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center;">
+    <div style="background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="margin: 0;">Hikaye Ağacı</h3>
+        <button onclick="document.getElementById('treeModal').style.display='none'" class="sf-btn sf-btn-sm">✕</button>
+      </div>
+      <div id="treeContent"></div>
+    </div>
+  </div>
+</div>
+`, extraScripts: `
+<script nonce="${cspNonce}">
+  (function() {
+    var sessionId = ${session.id};
+
+    // --- Choice loading spinner ---
+    document.querySelectorAll('.sf-choice-form').forEach(function(form) {
+      form.addEventListener('submit', function() {
+        var section = document.getElementById('choicesSection');
+        if (section) section.style.display = 'none';
+        document.getElementById('loadingIndicator').style.display = 'block';
+        form.querySelector('button').disabled = true;
+      });
+    });
+
+    // --- Scroll to last chapter ---
+    var chapters = document.querySelectorAll('.sf-chapter');
+    if (chapters.length > 0) chapters[chapters.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // --- Socket.io real-time (uses global sfSocket from realtime.js) ---
+    var socket = window.sfSocket;
+    if (socket) {
+      socket.on('coop:statusChange', function(data) {
+        if (data.sessionId === sessionId) location.reload();
+      });
+      socket.on('coop:characterAdded', function(data) {
+        if (data.sessionId === sessionId) location.reload();
+      });
+      socket.on('coop:characterRemoved', function(data) {
+        if (data.sessionId === sessionId) {
+          var card = document.querySelector('[data-char-id="' + data.characterId + '"]');
+          if (card) card.remove();
+        }
+      });
+    }
+
+    // --- Recap ---
+    window.loadCoopRecap = function() {
+      var modal = document.getElementById('recapModal');
+      var content = document.getElementById('recapContent');
+      content.textContent = 'Özet oluşturuluyor...';
+      modal.style.display = 'flex';
+      fetch('/coop/' + sessionId + '/recap')
+        .then(function(r) { return r.json(); })
+        .then(function(data) { content.textContent = data.recap || 'Özet alınamadı.'; })
+        .catch(function() { content.textContent = 'Bir hata oluştu.'; });
+    };
+
+    // --- Tree ---
+    window.loadCoopTree = function() {
+      var modal = document.getElementById('treeModal');
+      var content = document.getElementById('treeContent');
+      content.innerHTML = '<p>Yükleniyor...</p>';
+      modal.style.display = 'flex';
+      fetch('/coop/' + sessionId + '/tree')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.nodes) { content.innerHTML = '<p>Ağaç yüklenemedi.</p>'; return; }
+          var html = data.nodes.map(function(n) {
+            var sel = n.selectedChoice != null ? (n.choices.find(function(c) { return c.id === n.selectedChoice; }) || {}).text || '' : '';
+            return '<div style="border-left: 2px solid var(--accent); padding: 8px 12px; margin-bottom: 8px;">' +
+              '<strong>Bölüm ' + n.chapterNumber + '</strong>' +
+              '<div style="font-size: 0.85rem; color: var(--text-muted);">' + (n.summary || '') + '</div>' +
+              (sel ? '<div style="font-size: 0.8rem; color: var(--accent); margin-top: 4px;">→ ' + sel + '</div>' : '') +
+            '</div>';
+          }).join('');
+          content.innerHTML = html;
+        })
+        .catch(function() { content.innerHTML = '<p>Bir hata oluştu.</p>'; });
+    };
+  })();
+</script>
+` }) %>

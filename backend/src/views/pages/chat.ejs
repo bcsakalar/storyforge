@@ -1,0 +1,48 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <a href="/messages" class="sf-back">&larr; Mesajlara Dön</a>
+  <input type="hidden" id="chatPartnerId" value="${partner.id}">
+  <input type="hidden" id="currentUserId" value="${currentUserId}">
+
+  <div class="sf-chat-header">
+    <h3>@${partner.username}</h3>
+  </div>
+
+  <div class="sf-chat-messages" id="chatMessages">
+    ${messages.length === 0 ? '<p id="emptyChat" style="color: var(--text-muted); text-align: center; padding: 40px 0;">Henüz mesaj yok. İlk mesajı gönder!</p>' : messages.map(m => '<div class="sf-message ' + (m.senderId === currentUserId ? 'sent' : 'received') + '"><p>' + m.content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p><span class="sf-msg-time">' + new Date(m.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + '</span></div>').join('')}
+  </div>
+
+  <form id="chatForm" class="sf-chat-form">
+    <input type="text" id="chatInput" placeholder="Mesaj yaz..." class="sf-input" style="margin-bottom: 0; flex: 1;" maxlength="2000" required autocomplete="off">
+    <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Gönder</button>
+  </form>
+</div>
+`, extraScripts: `
+<script nonce="${cspNonce}">
+  var chatEl = document.getElementById('chatMessages');
+  if (chatEl) chatEl.scrollTop = chatEl.scrollHeight;
+
+  // AJAX message send (no page reload)
+  var chatForm = document.getElementById('chatForm');
+  if (chatForm) {
+    chatForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var input = document.getElementById('chatInput');
+      var content = input.value.trim();
+      if (!content) return;
+      var partnerId = document.getElementById('chatPartnerId').value;
+      input.value = '';
+      input.focus();
+      fetch('/messages/' + partnerId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'content=' + encodeURIComponent(content),
+        redirect: 'manual'
+      });
+      // Remove empty state
+      var emptyEl = document.getElementById('emptyChat');
+      if (emptyEl) emptyEl.remove();
+    });
+  }
+</script>
+` }) %>

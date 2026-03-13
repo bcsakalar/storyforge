@@ -1,0 +1,19 @@
+<nav class="sf-nav">
+  <a href="/" class="sf-nav-brand">
+    StoryForge
+    <span>Interactive Stories</span>
+  </a>
+  <ul class="sf-nav-links">
+    <% if (typeof user !== 'undefined' && user && user.userId) { %>
+      <li><a href="/dashboard">Hikayelerim</a></li>
+      <li><a href="/explore">Keşfet</a></li>
+      <li><a href="/coop">Co-op</a></li>
+      <li><a href="/friends">Arkadaşlar</a></li>
+      <li><a href="/messages" class="sf-nav-badge-link" id="navMessages">Mesajlar<span class="sf-nav-badge" id="msgBadge" style="display:none;"></span></a></li>
+      <li><a href="/notifications" class="sf-nav-badge-link" id="navNotif">🔔<span class="sf-nav-badge" id="notifBadge" style="display:none;"></span></a></li>
+      <li><a href="/profile"><%= user.username %></a></li>
+      <li><form action="/logout" method="POST" style="display:inline;"><button type="submit" class="sf-nav-logout-btn">Çıkış</button></form></li>
+    <% } %>
+  </ul>
+  <button class="sf-nav-toggle" onclick="document.querySelector('.sf-nav-links').classList.toggle('open')">☰</button>
+</nav>

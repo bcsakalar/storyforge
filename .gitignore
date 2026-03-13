@@ -1,0 +1,60 @@
+# Environment (hassas bilgiler)
+.env
+.env.local
+.env.production
+docker-compose.override.yml
+
+# Node
+node_modules/
+dist/
+
+# Mobile build artifacts
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins-dependencies
+mobile/.idea/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+pgdata/
+
+# Deploy guide (hassas bilgiler içerir)
+DEPLOY.md
+
+# Firebase service account (hassas)
+*-firebase-adminsdk-*.json
+
+# Google Services (Firebase client config — API key içerir)
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+
+# APK / AAB
+*.apk
+*.aab
+
+# Logs
+*.log
+npm-debug.log*
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore

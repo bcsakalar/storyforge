@@ -1,0 +1,27 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="sf-page-header">
+    <div>
+      <div class="sf-section-label">Bildirimler</div>
+      <h2>Bildirimler</h2>
+    </div>
+    ${notifications.length > 0 ? '<form method="POST" action="/notifications/read-all"><button type="submit" class="sf-btn sf-btn-sm">Tümünü Okundu İşaretle</button></form>' : ''}
+  </div>
+
+  ${notifications.length === 0 ? '<div class="sf-empty"><h3>Bildirim yok</h3><p>Yeni bildirimler burada görünecek.</p></div>' : `
+  <div class="sf-notifications-list">
+    ${notifications.map(n => `
+    <div class="sf-notification-row ${n.isRead ? '' : 'unread'}">
+      <div class="sf-notif-icon">${n.type === 'FRIEND_REQUEST' ? '👥' : n.type === 'LIKE' ? '❤️' : n.type === 'COMMENT' ? '💬' : n.type === 'COOP_INVITE' ? '🤝' : '🔔'}</div>
+      <div class="sf-notif-content">
+        <strong>${n.title}</strong>
+        <p>${n.body}</p>
+        <span class="sf-notif-time">${new Date(n.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+      ${!n.isRead ? '<form method="POST" action="/notifications/' + n.id + '/read"><button type="submit" class="sf-btn sf-btn-sm" style="font-size: 0.6rem;">✓</button></form>' : ''}
+    </div>
+    `).join('')}
+  </div>
+  `}
+</div>
+` }) %>

@@ -1,0 +1,81 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="sf-section-label">Yeni Hikaye</div>
+  <h2 style="margin-bottom: 8px;">Tür Seç</h2>
+  <p style="color: var(--text-muted); margin-bottom: 40px;">Hikayenin türünü seç, gerisini yapay zeka halleder.</p>
+
+  ${typeof error !== 'undefined' && error ? `
+  <div class="sf-alert">${error}</div>
+  ` : ''}
+
+  <form method="POST" action="/story/new" id="newStoryForm">
+    <div class="sf-genres">
+      ${genres.map(genre => `
+      <div>
+        <input type="radio" class="sf-genre-option" name="genre" value="${genre.value}" id="genre_${genre.value}" required>
+        <label class="sf-genre-label" for="genre_${genre.value}">
+          <div class="genre-icon">${genre.icon}</div>
+          <strong>${genre.label}</strong>
+          <small>${genre.description}</small>
+        </label>
+      </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="sf-form-label">Ruh Hali / Ton (Opsiyonel)</label>
+      <select name="mood" class="sf-select">
+        <option value="">Otomatik</option>
+        <option value="korku">🌑 Korku</option>
+        <option value="romantik">💕 Romantik</option>
+        <option value="komedi">😄 Komedi</option>
+        <option value="gerilim">😰 Gerilim</option>
+        <option value="epik">⚔️ Epik</option>
+        <option value="melankolik">🌧️ Melankolik</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="sf-form-label">Hikaye Dili</label>
+      <div style="display: flex; gap: 10px;">
+        <label class="sf-lang-option" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+          <input type="radio" name="language" value="tr" checked style="display: none;">
+          <span>🇹🇷</span> <span>Türkçe</span>
+        </label>
+        <label class="sf-lang-option" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+          <input type="radio" name="language" value="en" style="display: none;">
+          <span>🇬🇧</span> <span>English</span>
+        </label>
+      </div>
+    </div>
+
+    <div style="text-align: center;">
+      <button type="submit" class="sf-btn sf-btn-accent" id="startBtn">Hikayeyi Başlat &rarr;</button>
+    </div>
+  </form>
+</div>
+`, extraScripts: `
+<script nonce="${cspNonce}">
+  // Language selection highlight
+  document.querySelectorAll('.sf-lang-option').forEach(function(label) {
+    label.addEventListener('click', function() {
+      document.querySelectorAll('.sf-lang-option').forEach(function(l) {
+        l.style.borderColor = 'var(--border)';
+        l.style.background = 'transparent';
+      });
+      label.style.borderColor = 'var(--accent)';
+      label.style.background = 'rgba(201,169,110,0.08)';
+    });
+    if (label.querySelector('input').checked) {
+      label.style.borderColor = 'var(--accent)';
+      label.style.background = 'rgba(201,169,110,0.08)';
+    }
+  });
+
+  document.getElementById('newStoryForm').addEventListener('submit', function() {
+    var btn = document.getElementById('startBtn');
+    btn.disabled = true;
+    btn.textContent = 'Hikaye oluşturuluyor...';
+  });
+</script>
+` }) %>

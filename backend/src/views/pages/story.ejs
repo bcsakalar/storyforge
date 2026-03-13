@@ -1,0 +1,208 @@
+<%- include('../layout', { body: `
+<div style="max-width: 720px; margin: 0 auto;">
+  <a href="/dashboard" class="sf-back">&larr; Hikayelerime Dön</a>
+  ${typeof flashMessage !== 'undefined' && flashMessage ? '<div class=\"sf-flash-warning\" style=\"background: #3a2e00; border: 1px solid #5a4600; color: #e8c547; padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; border-radius: 2px;\">' + flashMessage + '</div>' : ''}
+  <div class="sf-story-header">
+    <div class="sf-section-label">${story.genre.toUpperCase()} &middot; ${story.chapters.length} BÖLÜM ${story.isCompleted ? '&middot; ✅ TAMAMLANDI' : ''}</div>
+    <h2>${story.title}</h2>
+    <div class="sf-story-toolbar">
+      ${!story.isCompleted ? '<form method="POST" action="/story/' + story.id + '/complete" style="display:inline;" onsubmit="return confirm(\'Hikayeyi tamamlamak istediğine emin misin?\')"><button type="submit" class="sf-btn sf-btn-sm">✓ Tamamla</button></form>' : ''}
+      ${isShared ? '<form method="POST" action="/story/' + story.id + '/unshare" style="display:inline;"><button type="submit" class="sf-btn sf-btn-sm sf-btn-danger">Paylaşımı Kaldır</button></form>' : '<form method="POST" action="/story/' + story.id + '/share" style="display:inline;"><button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">📤 Paylaş</button></form>'}
+      <a href="/story/${story.id}/export/pdf" class="sf-btn sf-btn-sm">📄 PDF</a>
+      <button class="sf-btn sf-btn-sm" onclick="loadRecap(${story.id})">📋 Özet</button>
+    </div>
+  </div>
+
+  <!-- Recap container -->
+  <div id="recapContainer" class="sf-recap" style="display: none;">
+    <div class="sf-section-label">Hikaye Özeti</div>
+    <p id="recapText"></p>
+  </div>
+
+  <!-- Characters -->
+  <div class="sf-characters-section">
+    <details>
+      <summary class="sf-section-label" style="cursor: pointer;">KARAKTERLER (${characters.length})</summary>
+      <div class="sf-characters-list">
+        ${characters.map(ch => '<div class="sf-character-row"><strong>' + ch.name + '</strong>' + (ch.personality ? '<span> — ' + ch.personality + '</span>' : '') + '<form method="POST" action="/story/' + story.id + '/characters/' + ch.id + '/delete" style="display:inline;" onsubmit="return confirm(\'Karakteri silmek istediğine emin misin?\')"><button type="submit" class="sf-btn sf-btn-danger sf-btn-sm" style="padding: 4px 10px; font-size: 0.6rem;">✕</button></form></div>').join('')}
+      </div>
+      <form method="POST" action="/story/${story.id}/characters" class="sf-character-form">
+        <input type="text" name="name" placeholder="Karakter adı" class="sf-input" required style="margin-bottom: 8px;">
+        <input type="text" name="personality" placeholder="Kişilik (opsiyonel)" class="sf-input" style="margin-bottom: 8px;">
+        <input type="text" name="appearance" placeholder="Görünüş (opsiyonel)" class="sf-input" style="margin-bottom: 8px;">
+        <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Karakter Ekle</button>
+      </form>
+    </details>
+  </div>
+
+  <div id="storyContainer">
+    ${story.chapters.map((chapter, index) => `
+      <div class="sf-chapter">
+        <div class="sf-chapter-header">
+          <div class="sf-chapter-num">Bölüm ${chapter.chapterNumber}</div>
+          <button class="sf-listen-btn" data-story-id="${story.id}" data-chapter="${chapter.chapterNumber}" onclick="playTts(this)">
+            ▶ DİNLE
+          </button>
+        </div>
+        <div class="sf-chapter-audio" id="audio-ch-${chapter.chapterNumber}" style="display:none;">
+          <audio id="player-ch-${chapter.chapterNumber}" onended="resetBtn(${chapter.chapterNumber})"></audio>
+          <div class="sf-audio-bar">
+            <button class="sf-audio-ctrl" onclick="toggleAudio(${chapter.chapterNumber})">■</button>
+            <div class="sf-audio-progress">
+              <div class="sf-audio-progress-fill" id="progress-ch-${chapter.chapterNumber}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="sf-chapter-text">
+          ${chapter.content.split('\\n').map(p => p.trim() ? '<p>' + p.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' : '').join('')}
+        </div>
+
+        ${chapter.selectedChoice !== null ? `
+          <div class="sf-selected-choice">
+            ✓ ${(chapter.choices.find(c => c.id === chapter.selectedChoice) || {}).text || ''}
+          </div>
+        ` : !story.isCompleted ? `
+          <div class="sf-choices" id="choicesSection">
+            <h5>Ne yapacaksın?</h5>
+            ${chapter.choices.map(choice => `
+              <form method="POST" action="/story/${story.id}/choose" class="sf-choice-form">
+                <input type="hidden" name="choiceId" value="${choice.id}">
+                <button type="submit" class="sf-choice-btn">
+                  <span class="num">${choice.id}.</span>${choice.text}
+                </button>
+              </form>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `).join('')}
+  </div>
+
+  <div id="loadingIndicator" class="sf-loading" style="display: none;">
+    <div class="sf-spinner"></div>
+    <p>Hikaye devam ediyor...</p>
+  </div>
+</div>
+`, extraScripts: `
+<script nonce="${cspNonce}">
+  window.addEventListener('load', function() {
+    var chapters = document.querySelectorAll('.sf-chapter');
+    if (chapters.length > 0) {
+      chapters[chapters.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  document.querySelectorAll('.sf-choice-form').forEach(function(form) {
+    form.addEventListener('submit', function() {
+      var section = document.getElementById('choicesSection');
+      if (section) section.style.display = 'none';
+      document.getElementById('loadingIndicator').style.display = 'block';
+      form.querySelector('button').disabled = true;
+    });
+  });
+
+  async function loadRecap(storyId) {
+    var container = document.getElementById('recapContainer');
+    var text = document.getElementById('recapText');
+    if (container.style.display === 'block') {
+      container.style.display = 'none';
+      return;
+    }
+    text.textContent = 'Özet oluşturuluyor...';
+    container.style.display = 'block';
+    try {
+      var resp = await fetch('/story/' + storyId + '/recap');
+      var data = await resp.json();
+      text.textContent = data.recap || 'Henüz özet oluşturulamadı.';
+    } catch (e) {
+      text.textContent = 'Özet yüklenirken bir hata oluştu.';
+    }
+  }
+
+  async function playTts(btn) {
+    var storyId = btn.getAttribute('data-story-id');
+    var chapterNum = btn.getAttribute('data-chapter');
+    var audioContainer = document.getElementById('audio-ch-' + chapterNum);
+    var player = document.getElementById('player-ch-' + chapterNum);
+
+    if (player.src && !player.paused) {
+      player.pause();
+      btn.textContent = '▶ DİNLE';
+      return;
+    }
+
+    if (player.src) {
+      player.play();
+      btn.textContent = '■ DUR';
+      audioContainer.style.display = 'block';
+      startProgress(chapterNum);
+      return;
+    }
+
+    btn.textContent = 'SES OLUŞTURULUYOR';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      var resp = await fetch('/story/' + storyId + '/chapter/' + chapterNum + '/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      var data = await resp.json();
+      btn.classList.remove('loading');
+      if (data.audio) {
+        var bin = atob(data.audio);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        var blob = new Blob([bytes], { type: 'audio/wav' });
+        player.src = URL.createObjectURL(blob);
+        player.play();
+        btn.textContent = '■ DUR';
+        btn.disabled = false;
+        audioContainer.style.display = 'block';
+        startProgress(chapterNum);
+      } else {
+        btn.textContent = '▶ DİNLE';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      btn.classList.remove('loading');
+      btn.textContent = '▶ DİNLE';
+      btn.disabled = false;
+    }
+  }
+
+  function toggleAudio(chapterNum) {
+    var player = document.getElementById('player-ch-' + chapterNum);
+    var btn = document.querySelector('[data-chapter="' + chapterNum + '"]');
+    if (player.paused) {
+      player.play();
+      btn.textContent = '■ DUR';
+    } else {
+      player.pause();
+      btn.textContent = '▶ DİNLE';
+    }
+  }
+
+  function resetBtn(chapterNum) {
+    var btn = document.querySelector('[data-chapter="' + chapterNum + '"]');
+    btn.textContent = '▶ DİNLE';
+    var fill = document.getElementById('progress-ch-' + chapterNum);
+    if (fill) fill.style.width = '0%';
+  }
+
+  function startProgress(chapterNum) {
+    var player = document.getElementById('player-ch-' + chapterNum);
+    var fill = document.getElementById('progress-ch-' + chapterNum);
+    function update() {
+      if (player.duration) {
+        fill.style.width = (player.currentTime / player.duration * 100) + '%';
+      }
+      if (!player.paused && !player.ended) {
+        requestAnimationFrame(update);
+      }
+    }
+    requestAnimationFrame(update);
+  }
+</script>
+` }) %>

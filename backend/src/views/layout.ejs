@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | StoryForge</title>
+  <link href="/css/style.css" rel="stylesheet">
+</head>
+<body style="--user-font-size: <%= typeof userFontSize !== 'undefined' ? userFontSize : 16 %>px;">
+  <%- include('./partials/navbar') %>
+  <div class="sf-container">
+    <%- body %>
+  </div>
+  <script nonce="<%= typeof cspNonce !== 'undefined' ? cspNonce : '' %>" src="/socket.io/socket.io.js"></script>
+  <script nonce="<%= typeof cspNonce !== 'undefined' ? cspNonce : '' %>" src="/js/realtime.js"></script>
+  <% if (typeof extraScripts !== 'undefined') { %>
+    <%- extraScripts %>
+  <% } %>
+</body>
+</html>

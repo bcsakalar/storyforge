@@ -1,0 +1,370 @@
+// Prisma Schema - StoryForge
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum CoopStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  REJECTED
+}
+
+// ─── User ────────────────────────────────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  username     String   @unique
+  password     String
+  profileImage String?  @map("profile_image")
+  language     String   @default("tr")
+  theme        String   @default("dark")
+  fontSize     Int      @default(16) @map("font_size")
+  pushToken    String?  @map("push_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  stories              Story[]
+  sentFriendships      Friendship[]     @relation("FriendshipSender")
+  receivedFriendships  Friendship[]     @relation("FriendshipReceiver")
+  sentMessages         Message[]        @relation("MessageSender")
+  receivedMessages     Message[]        @relation("MessageReceiver")
+  sharedStories        SharedStory[]
+  likes                Like[]
+  comments             Comment[]
+  hostedCoopSessions   CoopSession[]    @relation("CoopHost")
+  guestCoopSessions    CoopSession[]    @relation("CoopGuest")
+  characters           Character[]
+  achievements         UserAchievement[]
+  stats                UserStats?
+  dailyQuests          DailyQuest[]
+  notifications        Notification[]
+  blockedUsers         Block[]          @relation("BlockBlocker")
+  blockedByUsers       Block[]          @relation("BlockBlocked")
+  reports              Report[]
+  bookmarks            Bookmark[]
+  deviceTokens         DeviceToken[]
+
+  @@map("users")
+}
+
+// ─── Story ───────────────────────────────────────────────
+
+model Story {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  genre         String
+  mood          String?
+  summary       String    @default("")
+  interactionId String?   @map("interaction_id")
+  isActive      Boolean   @default(true) @map("is_active")
+  isCompleted   Boolean   @default(false) @map("is_completed")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  chapters      Chapter[]
+  sharedStories SharedStory[]
+  coopSessions  CoopSession[]
+  characters    Character[]
+
+  @@map("stories")
+}
+
+// ─── Chapter ─────────────────────────────────────────────
+
+model Chapter {
+  id             Int      @id @default(autoincrement())
+  storyId        Int      @map("story_id")
+  story          Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapterNumber  Int      @map("chapter_number")
+  content        String
+  choices        Json     @default("[]")
+  selectedChoice Int?     @map("selected_choice")
+  imageData      String?  @map("image_data")
+  interactionId  String   @map("interaction_id")
+  summary        String?  @map("chapter_summary")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("chapters")
+}
+
+// ─── Friendship ──────────────────────────────────────────
+
+model Friendship {
+  id         Int              @id @default(autoincrement())
+  senderId   Int              @map("sender_id")
+  sender     User             @relation("FriendshipSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId Int              @map("receiver_id")
+  receiver   User             @relation("FriendshipReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId])
+  @@map("friendships")
+}
+
+// ─── Message ─────────────────────────────────────────────
+
+model Message {
+  id          Int      @id @default(autoincrement())
+  senderId    Int      @map("sender_id")
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  Int      @map("receiver_id")
+  receiver    User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content     String
+  messageType String   @default("text") @map("message_type")
+  imageUrl    String?  @map("image_url")
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, createdAt])
+  @@map("messages")
+}
+
+// ─── Shared Story (Paylaşım) ─────────────────────────────
+
+model SharedStory {
+  id        Int      @id @default(autoincrement())
+  storyId   Int      @map("story_id")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  likes    Like[]
+  comments Comment[]
+  bookmarks Bookmark[]
+
+  @@unique([storyId, userId])
+  @@index([isPublic, createdAt])
+  @@map("shared_stories")
+}
+
+// ─── Like ────────────────────────────────────────────────
+
+model Like {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sharedStoryId Int         @map("shared_story_id")
+  sharedStory   SharedStory @relation(fields: [sharedStoryId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([userId, sharedStoryId])
+  @@map("likes")
+}
+
+// ─── Comment ─────────────────────────────────────────────
+
+model Comment {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sharedStoryId Int         @map("shared_story_id")
+  sharedStory   SharedStory @relation(fields: [sharedStoryId], references: [id], onDelete: Cascade)
+  content       String
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@index([sharedStoryId, createdAt])
+  @@map("comments")
+}
+
+// ─── Co-op Session ───────────────────────────────────────
+
+model CoopSession {
+  id          Int        @id @default(autoincrement())
+  storyId     Int        @map("story_id")
+  story       Story      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  hostUserId  Int        @map("host_user_id")
+  host        User       @relation("CoopHost", fields: [hostUserId], references: [id], onDelete: Cascade)
+  guestUserId Int?       @map("guest_user_id")
+  guest       User?      @relation("CoopGuest", fields: [guestUserId], references: [id], onDelete: Cascade)
+  currentTurn Int        @default(1) @map("current_turn")
+  status      CoopStatus @default(WAITING)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@map("coop_sessions")
+}
+
+// ─── Character ───────────────────────────────────────────
+
+model Character {
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  personality String
+  appearance  String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("characters")
+}
+
+// ─── Achievement ─────────────────────────────────────────
+
+model Achievement {
+  id          Int               @id @default(autoincrement())
+  key         String            @unique
+  title       String
+  description String
+  icon        String
+  category    String
+  threshold   Int               @default(1)
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId Int         @map("achievement_id")
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ─── User Stats ──────────────────────────────────────────
+
+model UserStats {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp               Int      @default(0)
+  level            Int      @default(1)
+  storiesCompleted Int      @default(0) @map("stories_completed")
+  genreCounts      Json     @default("{}") @map("genre_counts")
+  dailyStreak      Int      @default(0) @map("daily_streak")
+  lastActiveDate   DateTime? @map("last_active_date")
+
+  @@map("user_stats")
+}
+
+// ─── Daily Quest ─────────────────────────────────────────
+
+model DailyQuest {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questType   String   @map("quest_type")
+  isCompleted Boolean  @default(false) @map("is_completed")
+  rewardXp    Int      @default(25) @map("reward_xp")
+  date        DateTime @default(now()) @db.Date
+
+  @@index([userId, date])
+  @@map("daily_quests")
+}
+
+// ─── Notification ────────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json     @default("{}")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Story Export ────────────────────────────────────────
+
+model StoryExport {
+  id        Int      @id @default(autoincrement())
+  storyId   Int      @map("story_id")
+  format    String   @default("pdf")
+  url       String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("story_exports")
+}
+
+// ─── Block ───────────────────────────────────────────────
+
+model Block {
+  id        Int      @id @default(autoincrement())
+  blockerId Int      @map("blocker_id")
+  blocker   User     @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId Int      @map("blocked_id")
+  blocked   User     @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+// ─── Report ──────────────────────────────────────────────
+
+model Report {
+  id            Int      @id @default(autoincrement())
+  reporterId    Int      @map("reporter_id")
+  reporter      User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType    String   @map("target_type")   // "user", "story", "comment"
+  targetId      Int      @map("target_id")
+  reason        String
+  description   String?
+  status        String   @default("pending")   // pending, reviewed, resolved
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("reports")
+}
+
+// ─── Bookmark ────────────────────────────────────────────
+
+model Bookmark {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sharedStoryId Int         @map("shared_story_id")
+  sharedStory   SharedStory @relation(fields: [sharedStoryId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([userId, sharedStoryId])
+  @@map("bookmarks")
+}
+
+// ─── Device Token (FCM Push Notifications) ───────────────
+
+model DeviceToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("device_tokens")
+}

@@ -1,0 +1,70 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="sf-section-label">Profil</div>
+  <h2>${profile.username}</h2>
+  <p style="color: var(--text-muted); margin-bottom: 32px;">${profile.email} &middot; Katılım: ${new Date(profile.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+
+  <div class="sf-stats-grid">
+    <div class="sf-stat-card">
+      <div class="sf-stat-value">${stats.level}</div>
+      <div class="sf-stat-label">Seviye</div>
+    </div>
+    <div class="sf-stat-card">
+      <div class="sf-stat-value">${stats.xp}</div>
+      <div class="sf-stat-label">XP</div>
+    </div>
+    <div class="sf-stat-card">
+      <div class="sf-stat-value">${storyCount}</div>
+      <div class="sf-stat-label">Hikaye</div>
+    </div>
+    <div class="sf-stat-card">
+      <div class="sf-stat-value">${completedCount}</div>
+      <div class="sf-stat-label">Tamamlanan</div>
+    </div>
+  </div>
+
+  <div class="sf-xp-bar-wrap">
+    <div class="sf-xp-bar">
+      <div class="sf-xp-bar-fill" id="xpBarFill"></div>
+    </div>
+    <div class="sf-xp-label">${stats.progress} / ${stats.needed} XP &middot; Seviye ${stats.level + 1} için</div>
+  </div>
+
+  <div class="sf-profile-links">
+    <a href="/achievements" class="sf-btn sf-btn-sm">🏆 Başarımlar</a>
+    <a href="/quests" class="sf-btn sf-btn-sm">📋 Günlük Görevler</a>
+  </div>
+
+  <div class="sf-section-divider"></div>
+  <div class="sf-section-label">Ayarlar</div>
+  <h3>Tercihler</h3>
+
+  <form method="POST" action="/profile/settings" class="sf-settings-form">
+    <label class="sf-form-label">Tema</label>
+    <div class="sf-radio-group">
+      <label><input type="radio" name="theme" value="dark" ${profile.theme === 'dark' ? 'checked' : ''}> 🌙 Koyu</label>
+      <label><input type="radio" name="theme" value="light" ${profile.theme === 'light' ? 'checked' : ''}> ☀️ Açık</label>
+    </div>
+
+    <label class="sf-form-label" style="margin-top: 20px;">Yazı Boyutu</label>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 12px; color: var(--text-muted);">A</span>
+      <input type="range" name="fontSize" min="12" max="24" step="1" value="${profile.fontSize || 16}" id="fontSizeRange" oninput="document.getElementById('fontSizeVal').textContent = this.value + ' px'" style="flex: 1; accent-color: var(--accent);">
+      <span style="font-size: 20px; color: var(--text-muted);">A</span>
+      <span id="fontSizeVal" style="min-width: 45px; font-size: 12px; color: var(--text-muted);">${profile.fontSize || 16} px</span>
+    </div>
+
+    <label class="sf-form-label" style="margin-top: 20px;">Dil</label>
+    <div class="sf-radio-group">
+      <label><input type="radio" name="language" value="tr" ${profile.language === 'tr' ? 'checked' : ''}> Türkçe</label>
+      <label><input type="radio" name="language" value="en" ${profile.language === 'en' ? 'checked' : ''}> English</label>
+    </div>
+
+    <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm" style="margin-top: 16px;">Kaydet</button>
+  </form>
+</div>
+`, extraScripts: `
+<script nonce="${cspNonce}">
+  document.getElementById('xpBarFill').style.width = '${stats.percentage}' + '%';
+</script>
+` }) %>

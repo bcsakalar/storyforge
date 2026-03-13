@@ -1,0 +1,27 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="sf-page-header">
+    <div>
+      <div class="sf-section-label">Sohbet</div>
+      <h2>Mesajlar</h2>
+    </div>
+  </div>
+
+  ${conversations.length === 0 ? '<div class="sf-empty"><h3>Henüz mesajın yok</h3><p>Arkadaşlarınla sohbet etmek için arkadaş sayfasından mesaj gönder.</p><a href="/friends" class="sf-btn sf-btn-accent">Arkadaşlara Git &rarr;</a></div>' : `
+  <div class="sf-conversations-list">
+    ${conversations.map(c => `
+    <a href="/messages/${c.partner.id}" class="sf-conversation-row ${c.unreadCount > 0 ? 'unread' : ''}">
+      <div class="sf-conv-info">
+        <strong>@${c.partner.username}</strong>
+        <p>${c.lastMessage ? (c.lastMessage.content.length > 60 ? c.lastMessage.content.substring(0, 60) + '...' : c.lastMessage.content) : ''}</p>
+      </div>
+      <div class="sf-conv-meta">
+        ${c.lastMessage && c.lastMessage.createdAt ? '<span class="sf-conv-time">' + new Date(c.lastMessage.createdAt).toLocaleDateString('tr-TR') + '</span>' : ''}
+        ${c.unreadCount > 0 ? '<span class="sf-unread-badge">' + c.unreadCount + '</span>' : ''}
+      </div>
+    </a>
+    `).join('')}
+  </div>
+  `}
+</div>
+` }) %>

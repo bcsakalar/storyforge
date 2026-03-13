@@ -1,0 +1,20 @@
+<%- include('../layout', { body: `
+<div class="sf-auth-wrap">
+  <div class="sf-section-label">Hoş Geldin</div>
+  <h2>Giriş Yap</h2>
+  <p class="sf-subtitle">Hikayelerine devam et</p>
+
+  ${typeof error !== 'undefined' && error ? `
+  <div class="sf-alert">${error}</div>
+  ` : ''}
+
+  <form method="POST" action="/login">
+    <input type="email" class="sf-input" name="email" placeholder="E-posta" required autofocus>
+    <input type="password" class="sf-input" name="password" placeholder="Şifre" required>
+    <button type="submit" class="sf-btn sf-btn-full">Giriş Yap</button>
+  </form>
+  <p class="sf-link" style="margin-top: 24px; text-align: center;">
+    Hesabın yok mu? <a href="/register">Kayıt Ol</a>
+  </p>
+</div>
+` }) %>

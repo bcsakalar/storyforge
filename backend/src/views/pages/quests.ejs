@@ -1,0 +1,37 @@
+<%- include('../layout', { body: `
+<div style="max-width: 640px; margin: 0 auto;">
+  <a href="/profile" class="sf-back">&larr; Profile Dön</a>
+
+  <div class="sf-section-label">Günlük</div>
+  <h2>Günlük Görevler</h2>
+
+  <div class="sf-xp-bar-wrap" style="margin-bottom: 32px;">
+    <div class="sf-story-meta">
+      <span>Seviye ${stats.level}</span>
+      <span>${stats.xp} XP</span>
+      <span>${stats.percentage}%</span>
+    </div>
+    <div class="sf-xp-bar">
+      <div class="sf-xp-bar-fill" style="width: ${stats.percentage}%"></div>
+    </div>
+  </div>
+
+  ${quests.length === 0 ? '<div class="sf-empty"><h3>Bugünkü görevler tamamlandı!</h3><p>Yarın yeni görevler gelecek.</p></div>' : `
+  <div class="sf-quests-list">
+    ${quests.map(q => `
+    <div class="sf-quest-row ${q.isCompleted ? 'completed' : ''}">
+      <div class="sf-quest-info">
+        <strong>${q.questType === 'complete_chapter' ? '📖 Bölüm Tamamla' : q.questType === 'complete_story' ? '📚 Hikaye Tamamla' : q.questType === 'share_story' ? '📤 Hikaye Paylaş' : q.questType === 'add_friend' ? '👥 Arkadaş Ekle' : q.questType === 'send_message' ? '💬 Mesaj Gönder' : q.questType === 'like_story' ? '❤️ Hikaye Beğen' : q.questType === 'create_story' ? '✨ Yeni Hikaye Başlat' : '📋 ' + q.questType}</strong>
+        <span class="sf-quest-reward">+${q.rewardXp} XP</span>
+      </div>
+      ${q.isCompleted ? `
+        <form method="POST" action="/quests/${q.id}/claim">
+          <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Ödülü Al</button>
+        </form>
+      ` : '<span class="sf-quest-pending">Bekliyor...</span>'}
+    </div>
+    `).join('')}
+  </div>
+  `}
+</div>
+` }) %>

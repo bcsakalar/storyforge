@@ -1,0 +1,37 @@
+<%- include('../layout', { body: `
+<div style="max-width: 720px; margin: 0 auto;">
+  <a href="/explore" class="sf-back">&larr; Keşfete Dön</a>
+
+  <div class="sf-story-header">
+    <div class="sf-section-label">${shared.story.genre.toUpperCase()}</div>
+    <h2>${shared.story.title}</h2>
+    <div class="sf-story-meta" style="margin-top: 8px;">
+      <span>@${shared.user.username}</span>
+      <span>${shared.story.chapters ? shared.story.chapters.length + ' bölüm' : ''}</span>
+    </div>
+  </div>
+
+  <div class="sf-social-actions">
+    <form method="POST" action="/shared/${shared.id}/like" style="display:inline;">
+      <button type="submit" class="sf-btn sf-btn-sm ${shared.liked ? 'sf-btn-accent' : ''}">
+        ${shared.liked ? '❤️' : '🤍'} ${shared._count ? shared._count.likes : 0}
+      </button>
+    </form>
+    <span class="sf-comment-count">💬 ${shared._count ? shared._count.comments : 0} yorum</span>
+  </div>
+
+  ${shared.story.chapters ? shared.story.chapters.map(chapter => '<div class="sf-chapter"><div class="sf-chapter-num">Bölüm ' + chapter.chapterNumber + '</div><div class="sf-chapter-text">' + chapter.content.split('\\n').map(function(p) { return p.trim() ? '<p>' + p.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' : ''; }).join('') + '</div></div>').join('') : '<p style="color: var(--text-muted);">Hikaye içeriği yüklenemiyor.</p>'}
+
+  <div class="sf-section-divider"></div>
+  <h4>Yorumlar</h4>
+
+  <form method="POST" action="/shared/${shared.id}/comments" class="sf-comment-form">
+    <input type="text" name="content" placeholder="Yorum yaz..." class="sf-input" maxlength="1000" required>
+    <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Gönder</button>
+  </form>
+
+  <div class="sf-comments-list">
+    ${comments.length === 0 ? '<p style="color: var(--text-muted);">Henüz yorum yok.</p>' : comments.map(c => '<div class="sf-comment"><div class="sf-comment-header"><strong>@' + c.user.username + '</strong><span class="sf-comment-date">' + new Date(c.createdAt).toLocaleDateString('tr-TR') + '</span></div><p>' + c.content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p></div>').join('')}
+  </div>
+</div>
+` }) %>

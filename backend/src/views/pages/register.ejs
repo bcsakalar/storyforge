@@ -1,0 +1,22 @@
+<%- include('../layout', { body: `
+<div class="sf-auth-wrap">
+  <div class="sf-section-label">Başla</div>
+  <h2>Kayıt Ol</h2>
+  <p class="sf-subtitle">Yeni hesap oluştur</p>
+
+  ${typeof error !== 'undefined' && error ? `
+  <div class="sf-alert">${error}</div>
+  ` : ''}
+
+  <form method="POST" action="/register">
+    <input type="text" class="sf-input" name="username" placeholder="Kullanıcı Adı" required autofocus minlength="3">
+    <input type="email" class="sf-input" name="email" placeholder="E-posta" required>
+    <input type="password" class="sf-input" name="password" placeholder="Şifre (en az 6 karakter)" required minlength="6">
+    <input type="password" class="sf-input" name="confirmPassword" placeholder="Şifre Tekrar" required minlength="6">
+    <button type="submit" class="sf-btn sf-btn-full">Kayıt Ol</button>
+  </form>
+  <p class="sf-link" style="margin-top: 24px; text-align: center;">
+    Zaten hesabın var mı? <a href="/login">Giriş Yap</a>
+  </p>
+</div>
+` }) %>

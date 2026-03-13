@@ -1,0 +1,38 @@
+<%- include('../layout', { body: `
+<div class="sf-page-header">
+  <div>
+    <div class="sf-section-label">Koleksiyon</div>
+    <h2>Hikayelerim</h2>
+  </div>
+  <a href="/story/new" class="sf-btn sf-btn-accent sf-btn-sm">Yeni Hikaye &rarr;</a>
+</div>
+
+${stories.length === 0 ? `
+<div class="sf-empty">
+  <h3>Henüz hiç hikayen yok</h3>
+  <p>İlk interaktif hikayeni başlatmak için aşağıdaki butona tıkla.</p>
+  <a href="/story/new" class="sf-btn sf-btn-accent">İlk Hikayeni Başlat &rarr;</a>
+</div>
+` : `
+<div class="sf-stories-grid">
+  ${stories.map(story => `
+    <a href="/story/${story.id}" class="sf-story-row">
+      <div class="sf-story-info">
+        <h4>${story.title.length > 70 ? story.title.substring(0, 70) + '...' : story.title}</h4>
+        <div class="sf-story-meta">
+          <span>${story.genre.toUpperCase()}</span>
+          <span>${story._count?.chapters || 0} bölüm</span>
+          <span>${new Date(story.updatedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+        </div>
+      </div>
+      <div class="sf-story-actions" onclick="event.stopPropagation()">
+        <form action="/story/${story.id}/delete" method="POST"
+              onsubmit="return confirm('Bu hikayeyi silmek istediğine emin misin?')">
+          <button type="submit" class="sf-btn sf-btn-danger sf-btn-sm">Sil</button>
+        </form>
+      </div>
+    </a>
+  `).join('')}
+</div>
+`}
+` }) %>

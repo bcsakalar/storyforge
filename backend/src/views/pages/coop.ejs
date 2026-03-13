@@ -1,0 +1,76 @@
+<%- include('../layout', { body: `
+<div style="max-width: 720px; margin: 0 auto;">
+  <div class="sf-page-header">
+    <div>
+      <div class="sf-section-label">İşbirliği</div>
+      <h2>Co-op Hikayeler</h2>
+    </div>
+  </div>
+
+  <!-- Create new co-op -->
+  <div class="sf-coop-create">
+    <h4>Yeni Co-op Başlat</h4>
+    ${friends.length === 0 ? '<p style="color: var(--text-muted);">Önce arkadaş eklemen gerekiyor. <a href="/friends">Arkadaşlara git &rarr;</a></p>' : `
+    <form method="POST" action="/coop/create" class="sf-coop-form">
+      <select name="guestUserId" class="sf-select" required>
+        <option value="">Arkadaş seç...</option>
+        ${friends.map(f => {
+          return '<option value="' + f.friend.id + '">@' + f.friend.username + '</option>';
+        }).join('')}
+      </select>
+      <select name="genre" class="sf-select" required>
+        <option value="">Tür seç...</option>
+        ${genres.map(g => '<option value="' + g.value + '">' + g.icon + ' ' + g.label + '</option>').join('')}
+      </select>
+      <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Başlat</button>
+    </form>
+    `}
+  </div>
+
+  ${invites.length > 0 ? `
+  <div class="sf-section-divider"></div>
+  <div class="sf-section-label">Davetler</div>
+  <div class="sf-coop-list">
+    ${invites.map(inv => `
+    <div class="sf-coop-row">
+      <div>
+        <strong>@${inv.host.username} seni davet etti</strong>
+        <div class="sf-story-meta"><span>${inv.story.genre.toUpperCase()}</span> ${inv.story.mood ? '<span>' + inv.story.mood + '</span>' : ''}</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <form method="POST" action="/coop/${inv.id}/join">
+          <button type="submit" class="sf-btn sf-btn-accent sf-btn-sm">Katıl</button>
+        </form>
+        <form method="POST" action="/coop/${inv.id}/reject">
+          <button type="submit" class="sf-btn sf-btn-sm" style="border-color: #ef4444; color: #ef4444;">Reddet</button>
+        </form>
+      </div>
+    </div>
+    `).join('')}
+  </div>
+  ` : ''}
+
+  <div class="sf-section-divider"></div>
+  <div class="sf-section-label">Oturumlar</div>
+
+  ${sessions.length === 0 ? '<p style="color: var(--text-muted);">Co-op oturumun yok.</p>' : `
+  <div class="sf-coop-list">
+    ${sessions.map(s => {
+      const statusMap = { WAITING: 'Bekleniyor', ACTIVE: 'Aktif', COMPLETED: 'Tamamlandı' };
+      const statusColor = s.status === 'ACTIVE' ? '#22c55e' : s.status === 'COMPLETED' ? 'var(--text-muted)' : '#eab308';
+      return `
+    <a href="/coop/${s.id}" class="sf-coop-row" style="text-decoration: none; color: var(--text);">
+      <div>
+        <strong>${s.story.title.substring(0, 50)}</strong>
+        <div class="sf-story-meta">
+          <span>@${s.host.username} & @${s.guest ? s.guest.username : '?'}</span>
+          <span style="color: ${statusColor};">${statusMap[s.status] || s.status}</span>
+        </div>
+      </div>
+      <span class="sf-btn sf-btn-sm">Devam &rarr;</span>
+    </a>`;
+    }).join('')}
+  </div>
+  `}
+</div>
+` }) %>
