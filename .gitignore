@@ -40,9 +40,11 @@ DEPLOY.md
 # Firebase service account (hassas)
 *-firebase-adminsdk-*.json
 
-# Google Services (Firebase client config — API key içerir)
+# Firebase generated config (API key içerir)
+mobile/lib/firebase_options.dart
 mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
+mobile/firebase.json
 
 # APK / AAB
 *.apk
