@@ -22,7 +22,7 @@ const MOOD_DESCRIPTIONS = {
   melankolik: 'Hüzünlü, düşündürücü ve nostaljik. Derin duygusal yansımalar.',
 };
 
-function buildSystemInstruction(genre, summary = '', { mood, characters, language } = {}) {
+function buildSystemInstruction(genre, summary = '', { mood, characters, language, memoryContext } = {}) {
   const lang = language === 'en' ? 'en' : 'tr';
   const langText = lang === 'en' ? 'İngilizce' : 'Türkçe';
 
@@ -91,6 +91,11 @@ ${summary}
 ÖNEMLI: Yukarıdaki özet, hikayenin şu ana kadarki tüm olaylarını içeriyor. Bu bilgileri kullanarak hikayeyi tutarlı bir şekilde devam ettir. Önceki olaylarla çelişme.`;
   }
 
+  // RAG hafıza konteksti ekle
+  if (memoryContext) {
+    instruction += `\n${memoryContext}`;
+  }
+
   return instruction;
 }
 
@@ -140,8 +145,8 @@ async function startNewStory(genre, { mood, characters, language } = {}) {
  * @param {string|null} imageBase64 - Kameradan gelen base64 fotoğraf (opsiyonel)
  * @param {Object} options - mood, characters, language
  */
-async function continueStory(genre, summary, recentChapters, choiceText, imageBase64 = null, { mood, characters, language } = {}) {
-  const systemInstruction = buildSystemInstruction(genre, summary, { mood, characters, language });
+async function continueStory(genre, summary, recentChapters, choiceText, imageBase64 = null, { mood, characters, language, memoryContext, chapterCount } = {}) {
+  const systemInstruction = buildSystemInstruction(genre, summary, { mood, characters, language, memoryContext });
 
   // Build context from recent chapters
   let contextMessage = '';
@@ -178,6 +183,8 @@ async function continueStory(genre, summary, recentChapters, choiceText, imageBa
       responseMimeType: 'application/json',
       temperature: 0.85,
       topP: 0.95,
+      // Thinking mode: uzun hikayelerde daha tutarlı içerik üretimi
+      ...(chapterCount >= 20 && { thinkingConfig: { thinkingBudget: 1024 } }),
     },
   });
 
@@ -187,6 +194,7 @@ async function continueStory(genre, summary, recentChapters, choiceText, imageBa
   return {
     storyData: parsed,
     rawResponse: text,
+    usageMetadata: interaction.usageMetadata || null,
   };
 }
 
@@ -376,8 +384,8 @@ async function* startNewStoryStream(genre, { mood, characters, language } = {}) 
 /**
  * Streaming: Hikayeyi devam ettirir, chunk'ları yield eder.
  */
-async function* continueStoryStream(genre, summary, recentChapters, choiceText, imageBase64 = null, { mood, characters, language } = {}) {
-  const systemInstruction = buildSystemInstruction(genre, summary, { mood, characters, language });
+async function* continueStoryStream(genre, summary, recentChapters, choiceText, imageBase64 = null, { mood, characters, language, memoryContext, chapterCount } = {}) {
+  const systemInstruction = buildSystemInstruction(genre, summary, { mood, characters, language, memoryContext });
 
   let contextMessage = '';
   if (recentChapters.length > 0) {
@@ -412,6 +420,7 @@ async function* continueStoryStream(genre, summary, recentChapters, choiceText, 
       responseMimeType: 'application/json',
       temperature: 0.85,
       topP: 0.95,
+      ...(chapterCount >= 20 && { thinkingConfig: { thinkingBudget: 1024 } }),
     },
   });
 

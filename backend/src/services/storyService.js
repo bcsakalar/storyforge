@@ -1,6 +1,8 @@
 const prisma = require('../config/database');
 const geminiService = require('./geminiService');
 const characterService = require('./characterService');
+const storyMemoryService = require('./storyMemoryService');
+const cacheService = require('./cacheService');
 
 const RECENT_CHAPTERS_COUNT = 5;
 
@@ -67,6 +69,11 @@ async function createStory(userId, genre, { mood, language } = {}) {
     },
   });
 
+  // İlk bölüm için hafıza işleme (arka planda)
+  storyMemoryService.processChapter(story.id, 1, storyData.storyText, storyData.chapterSummary).catch((err) => {
+    console.error('İlk bölüm hafıza hatası:', err.message);
+  });
+
   return story;
 }
 
@@ -109,13 +116,31 @@ async function makeChoice(storyId, userId, choiceId, imageBase64 = null) {
 
   // Gemini'ye gönder
   const characters = await characterService.getCharacters(story.id, userId);
+
+  // RAG: İlgili hafıza kontekstini al (cache'den veya pgvector'den)
+  let memoryContext = '';
+  try {
+    const cached = await cacheService.getCachedStoryContext(storyId);
+    if (cached) {
+      memoryContext = cached;
+    } else {
+      const ragContext = await storyMemoryService.getRelevantContext(storyId, selectedChoice.text);
+      memoryContext = storyMemoryService.buildMemoryContext(ragContext);
+      if (memoryContext) {
+        await cacheService.cacheStoryContext(storyId, memoryContext);
+      }
+    }
+  } catch (err) {
+    console.error('RAG context hatası:', err.message);
+  }
+
   const result = await geminiService.continueStory(
     story.genre,
     story.summary,
     recentChapters,
     selectedChoice.text,
     imageBase64,
-    { mood: story.mood, characters },
+    { mood: story.mood, characters, memoryContext, chapterCount: lastChapter.chapterNumber },
   );
 
   const { storyData } = result;
@@ -155,6 +180,21 @@ async function makeChoice(storyId, userId, choiceId, imageBase64 = null) {
     generateAndSaveSummary(story.id).catch((err) => {
       console.error('Özet üretme hatası:', err.message);
     });
+  }
+
+  // Hafıza sistemi: yeni bölümü arka planda işle
+  storyMemoryService.processChapter(story.id, newChapterNumber, storyData.storyText, storyData.chapterSummary).catch((err) => {
+    console.error('Hafıza işleme hatası:', err.message);
+  });
+
+  // Cache'i invalidate et (yeni bölüm eklendi)
+  cacheService.invalidateStoryContext(storyId).catch(() => {});
+
+  // Token kullanımını kaydet
+  if (result.usageMetadata) {
+    const um = result.usageMetadata;
+    storyMemoryService.trackTokenUsage(userId, storyId, 'gemini-3-flash-preview', um.promptTokenCount || 0, um.candidatesTokenCount || 0, 'generate').catch(() => {});
+    cacheService.trackDailyTokens(userId, um.promptTokenCount || 0, um.candidatesTokenCount || 0).catch(() => {});
   }
 
   // Güncellenmiş hikayeyi döndür
@@ -445,13 +485,31 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
   }));
 
   const characters = await characterService.getCharacters(story.id, userId);
+
+  // RAG: İlgili hafıza kontekstini al
+  let memoryContext = '';
+  try {
+    const cached = await cacheService.getCachedStoryContext(storyId);
+    if (cached) {
+      memoryContext = cached;
+    } else {
+      const ragContext = await storyMemoryService.getRelevantContext(storyId, selectedChoice.text);
+      memoryContext = storyMemoryService.buildMemoryContext(ragContext);
+      if (memoryContext) {
+        await cacheService.cacheStoryContext(storyId, memoryContext);
+      }
+    }
+  } catch (err) {
+    console.error('RAG context hatası:', err.message);
+  }
+
   const stream = geminiService.continueStoryStream(
     story.genre,
     story.summary,
     recentChapters,
     selectedChoice.text,
     imageBase64,
-    { mood: story.mood, characters },
+    { mood: story.mood, characters, memoryContext, chapterCount: lastChapter.chapterNumber },
   );
 
   let fullText = '';
@@ -489,6 +547,14 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
       console.error('Özet üretme hatası:', err.message);
     });
   }
+
+  // Hafıza sistemi: yeni bölümü arka planda işle
+  storyMemoryService.processChapter(story.id, newChapterNumber, parsed.storyText, parsed.chapterSummary).catch((err) => {
+    console.error('Hafıza işleme hatası:', err.message);
+  });
+
+  // Cache'i invalidate et
+  cacheService.invalidateStoryContext(storyId).catch(() => {});
 
   return getStoryWithChapters(story.id, userId);
 }

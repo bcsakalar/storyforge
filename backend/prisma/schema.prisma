@@ -82,6 +82,9 @@ model Story {
   sharedStories SharedStory[]
   coopSessions  CoopSession[]
   characters    Character[]
+  entities      StoryEntity[]
+  events        StoryEvent[]
+  worldStates   StoryWorldState[]
 
   @@map("stories")
 }
@@ -367,4 +370,76 @@ model DeviceToken {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("device_tokens")
+}
+
+// ─── Story Entity (RAG Memory - Characters, Locations, Objects) ──
+
+model StoryEntity {
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  type        String   // "character" | "location" | "object" | "faction"
+  name        String
+  description String   @db.Text
+  attributes  Json     @default("{}")
+  embedding   Unsupported("vector(768)")?
+  firstSeen   Int      @default(1) @map("first_seen")
+  lastSeen    Int      @default(1) @map("last_seen")
+  importance  Float    @default(0.5)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([storyId, type, name])
+  @@index([storyId, type])
+  @@index([storyId, importance])
+  @@map("story_entities")
+}
+
+// ─── Story Event (RAG Memory - Important Plot Events) ────────────
+
+model StoryEvent {
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapterNum  Int      @map("chapter_num")
+  description String   @db.Text
+  impact      String   @default("minor") // "major" | "minor" | "twist"
+  entities    String[] // Related entity names
+  embedding   Unsupported("vector(768)")?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([storyId, chapterNum])
+  @@index([storyId, impact])
+  @@map("story_events")
+}
+
+// ─── Story World State (Snapshot of world at each chapter) ───────
+
+model StoryWorldState {
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapterNum  Int      @map("chapter_num")
+  state       Json     // {activeQuests, relationships, worldFacts, mood}
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([storyId, chapterNum])
+  @@map("story_world_states")
+}
+
+// ─── Token Usage (Cost Tracking) ─────────────────────────────────
+
+model TokenUsage {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  storyId      Int?     @map("story_id")
+  model        String   @default("gemini-3-flash-preview")
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  operation    String   @default("generate") // "generate" | "embed" | "extract" | "summary" | "tts"
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([storyId])
+  @@map("token_usage")
 }
