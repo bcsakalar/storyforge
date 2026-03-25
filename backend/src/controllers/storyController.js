@@ -145,7 +145,9 @@ async function chapterTtsWeb(req, res, next) {
     }
 
     const geminiService = require('../services/geminiService');
-    const pcmBase64 = await geminiService.generateSpeech(chapter.content);
+    // TTS için metin 3000 karakterle sınırla (504 timeout önlemi)
+    const ttsText = chapter.content.length > 3000 ? chapter.content.substring(0, 3000) : chapter.content;
+    const pcmBase64 = await geminiService.generateSpeech(ttsText);
     const wavBase64 = geminiService.pcmToWavBase64(pcmBase64);
 
     res.json({ audio: wavBase64 });

@@ -158,7 +158,7 @@ async function upsertEntity(storyId, type, name, description, attributes, import
         description: updatedDesc.substring(0, 2000),
         attributes: mergedAttrs,
         importance: Math.max(existing.importance, importance),
-        lastSeenChapter: chapterNum,
+        lastSeen: chapterNum,
       },
     });
   } else {
@@ -167,9 +167,8 @@ async function upsertEntity(storyId, type, name, description, attributes, import
     const embedding = await getEmbedding(embeddingText);
 
     await prisma.$executeRaw`
-      INSERT INTO story_entities ("id", "storyId", "type", "name", "description", "attributes", "embedding", "firstSeenChapter", "lastSeenChapter", "importance", "createdAt", "updatedAt")
+      INSERT INTO story_entities ("story_id", "type", "name", "description", "attributes", "embedding", "first_seen", "last_seen", "importance", "created_at", "updated_at")
       VALUES (
-        gen_random_uuid(),
         ${storyId},
         ${type},
         ${name},
@@ -193,14 +192,13 @@ async function saveEvent(storyId, chapterNum, description, impact, involvedEntit
   const embedding = await getEmbedding(description);
 
   await prisma.$executeRaw`
-    INSERT INTO story_events ("id", "storyId", "chapterNumber", "description", "impact", "entities", "embedding", "createdAt")
+    INSERT INTO story_events ("story_id", "chapter_num", "description", "impact", "entities", "embedding", "created_at")
     VALUES (
-      gen_random_uuid(),
       ${storyId},
       ${chapterNum},
       ${description.substring(0, 2000)},
       ${impact},
-      ${JSON.stringify(involvedEntities || [])}::jsonb,
+      ${involvedEntities || []}::text[],
       ${embedding}::vector,
       NOW()
     )
@@ -212,9 +210,9 @@ async function saveEvent(storyId, chapterNum, description, impact, involvedEntit
  */
 async function updateWorldState(storyId, chapterNum, state) {
   await prisma.storyWorldState.upsert({
-    where: { storyId_chapterNumber: { storyId, chapterNumber: chapterNum } },
+    where: { storyId_chapterNum: { storyId, chapterNum } },
     update: { state },
-    create: { storyId, chapterNumber: chapterNum, state },
+    create: { storyId, chapterNum, state },
   });
 }
 
@@ -311,17 +309,17 @@ async function getRelevantContext(storyId, choiceText, topK = 5) {
     SELECT id, type, name, description, attributes, importance, status, relationships,
            1 - (embedding <=> ${queryEmbedding}::vector) as similarity
     FROM story_entities
-    WHERE "storyId" = ${storyId}
+    WHERE "story_id" = ${storyId}
     ORDER BY embedding <=> ${queryEmbedding}::vector
     LIMIT ${topK}
   `;
 
   // 3. En alakalı olayları bul — relevanceDecay dahil
   const relevantEvents = await prisma.$queryRaw`
-    SELECT id, "chapterNumber", description, impact, entities, relevance_decay, is_resolved,
+    SELECT id, "chapter_num" as "chapterNum", description, impact, entities, relevance_decay, is_resolved,
            (1 - (embedding <=> ${queryEmbedding}::vector)) * relevance_decay as weighted_similarity
     FROM story_events
-    WHERE "storyId" = ${storyId}
+    WHERE "story_id" = ${storyId}
       AND is_resolved = false
     ORDER BY weighted_similarity DESC
     LIMIT ${topK}
@@ -330,7 +328,7 @@ async function getRelevantContext(storyId, choiceText, topK = 5) {
   // 4. Son world state'i al
   const latestWorldState = await prisma.storyWorldState.findFirst({
     where: { storyId },
-    orderBy: { chapterNumber: 'desc' },
+    orderBy: { chapterNum: 'desc' },
   });
 
   return {
@@ -438,7 +436,7 @@ async function decayEventRelevance(storyId) {
     await prisma.$executeRaw`
       UPDATE story_events
       SET relevance_decay = relevance_decay * 0.95
-      WHERE "storyId" = ${storyId}
+      WHERE "story_id" = ${storyId}
         AND is_resolved = false
         AND relevance_decay > 0.1
     `;
