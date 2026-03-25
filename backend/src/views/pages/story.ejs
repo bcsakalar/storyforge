@@ -376,15 +376,15 @@
   }
 
   function normalizeStoryText(text) {
-    var normalized = (text || '').replace(/\r\n/g, '\n').trim();
+    var normalized = (text || '').replace(/\\r\\n/g, '\\n').trim();
     if (!normalized) return '';
 
-    normalized = normalized.replace(/\s*\*\*\*\s*/g, '\n***\n');
-    if (normalized.indexOf('\n') !== -1) {
+    normalized = normalized.replace(/\\s*\\*\\*\\*\\s*/g, '\\n***\\n');
+    if (normalized.indexOf('\\n') !== -1) {
       return normalized;
     }
 
-    var sections = normalized.split(/\n\*\*\*\n/);
+    var sections = normalized.split(/\\n\\*\\*\\*\\n/);
     return sections.map(function(section) {
       var sentences = section.match(/[^.!?]+[.!?]+(?:["'”’»]+)?|[^.!?]+$/g) || [section];
       var paragraphs = [];
@@ -416,8 +416,8 @@
         paragraphs.push(buffer.join(' '));
       }
 
-      return paragraphs.join('\n\n');
-    }).join('\n***\n');
+      return paragraphs.join('\\n\\n');
+    }).join('\\n***\\n');
   }
 
   function formatContent(text) {
