@@ -64,7 +64,6 @@ npm-debug.log*
 AI_KAVRAMLARI.md
 
 # AI Agent dosyaları (projeye özel, repo'ya gitmez)
-knowledge/
 .github/
 .agents/
 MEMORY.md
