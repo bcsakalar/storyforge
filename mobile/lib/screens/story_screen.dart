@@ -477,15 +477,13 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
     setState(() => _ttsLoading = true);
     try {
       final audioBase64 = await widget.apiService.getChapterAudio(widget.storyId, widget.chapter.chapterNumber);
-      if (audioBase64 != null && mounted) {
-        final bytes = base64Decode(audioBase64);
-        _audioFilePath = await writeTempFile('tts_${widget.storyId}_${widget.chapter.chapterNumber}.wav', bytes);
-        await _audioPlayer.play(DeviceFileSource(_audioFilePath!));
-      }
-    } catch (_) {
+      final bytes = base64Decode(audioBase64);
+      _audioFilePath = await writeTempFile('tts_${widget.storyId}_${widget.chapter.chapterNumber}.wav', bytes);
+      await _audioPlayer.play(DeviceFileSource(_audioFilePath!));
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Ses oluşturulamadı', style: TextStyle(fontSize: 13, color: Colors.white)), backgroundColor: Colors.red[900], behavior: SnackBarBehavior.floating, shape: const RoundedRectangleBorder()),
+          SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''), style: const TextStyle(fontSize: 13, color: Colors.white)), backgroundColor: Colors.red[900], behavior: SnackBarBehavior.floating, shape: const RoundedRectangleBorder()),
         );
       }
     }

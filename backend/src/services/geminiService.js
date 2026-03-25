@@ -70,6 +70,7 @@ Hikayede aşağıdaki kullanıcı tanımlı karakterler yer alıyor. Bu karakter
 13. Diyalog sahneleri MUTLAKA olmalı — karakterlerin konuşmaları, düşünceleri ve hisleri detaylı aktarılmalı.
 14. Her bölümde en az bir sahne geçişi veya zaman atlaması olmalı, sahne geçişlerini "***" ile ayır.
 15. Mekan tasvirlerini zenginleştir — ses, koku, dokunma duyuları dahil et.
+16. JSON storyText alanında paragrafları MUTLAKA \\n\\n (çift newline) ile ayır. Sahne geçişlerini \\n***\\n şeklinde yaz. Diyalog satırlarını da \\n ile ayır. Düz metin bloğu oluşturma, okunabilir paragraflar halinde yaz.
 
 ## JSON FORMAT
 \`\`\`json

@@ -108,11 +108,27 @@ class ApiService {
     return '$root$relativePath';
   }
 
-  Future<String?> getChapterAudio(int storyId, int chapterNum) async {
+  static String extractChapterAudio(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final audio = data['audio'];
+      if (audio is String && audio.isNotEmpty) {
+        return audio;
+      }
+
+      final error = data['error'];
+      if (error is String && error.isNotEmpty) {
+        throw Exception(error);
+      }
+    }
+
+    throw Exception('Ses verisi alınamadı');
+  }
+
+  Future<String> getChapterAudio(int storyId, int chapterNum) async {
     final response = await _dio.post(
       '/stories/$storyId/chapters/$chapterNum/tts',
       options: Options(receiveTimeout: const Duration(seconds: 120)),
     );
-    return response.data?['audio'] as String?;
+    return extractChapterAudio(response.data);
   }
 }
