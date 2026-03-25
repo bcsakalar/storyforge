@@ -11,10 +11,10 @@ ALTER TABLE "story_events" ADD COLUMN "relevance_decay" DOUBLE PRECISION NOT NUL
 ALTER TABLE "story_events" ADD COLUMN "is_resolved" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateIndex: StoryEntity status index
-CREATE INDEX "story_entities_storyId_status_idx" ON "story_entities"("storyId", "status");
+CREATE INDEX "story_entities_story_id_status_idx" ON "story_entities"("story_id", "status");
 
 -- CreateIndex: StoryEvent isResolved index
-CREATE INDEX "story_events_storyId_is_resolved_idx" ON "story_events"("storyId", "is_resolved");
+CREATE INDEX "story_events_story_id_is_resolved_idx" ON "story_events"("story_id", "is_resolved");
 
 -- CreateTable: StoryLore
 CREATE TABLE "story_lore" (

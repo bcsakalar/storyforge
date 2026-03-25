@@ -262,11 +262,13 @@ storyforge/
 
 ## Gemini Hafıza Stratejisi
 
-1. **Context Window**: Her istekte son 5 bölümün tam metni gönderilir
-2. **Periyodik Özetleme**: Her 10 bölümde bir kapsamlı özet üretilir
-3. **Zincir Yenileme**: 20+ bölüm sonra yeni context zinciri başlatılır
-4. **System Instruction**: Tür kuralları, tutarlılık kuralları, JSON format zorunluluğu
-5. **Structured Output**: JSON formatında çıktı → parse güvenilirliği
+1. **Dynamic Context Window**: Bölüm sayısına göre adaptif (Ch 1-10: son 5 full | Ch 11-30: son 3 full + 5 özet | Ch 31+: son 2 full + milestone'lar)
+2. **Quick/Deep Summarization**: Quick = her bölüm (2-3 cümle), Deep = her 5 bölümde kapsamlı özet
+3. **Multi-Agent Pipeline**: Writer Agent (temp 0.9) → Consistency Agent (temp 0.1, RAG Triad) → max 1 retry
+4. **Thinking Mode**: 10+ bölümde aktif (2048 token bütçe)
+5. **RAG Retrieval**: pgvector cosine similarity ile entity/event/lore bağlamı
+6. **System Instruction**: Tür kuralları, tutarlılık kuralları, JSON format zorunluluğu
+7. **Structured Output**: JSON formatında çıktı → parse güvenilirliği
 
 ## Kamera Özelliği (Mobil)
 
