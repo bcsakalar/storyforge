@@ -726,4 +726,111 @@ module.exports = {
       res.json({ message: 'Token silindi' });
     } catch (err) { next(err); }
   },
+
+  // === Story Codex (Encyclopedia) ===
+  async getStoryCodex(req, res, next) {
+    try {
+      const storyId = parseInt(req.params.id, 10);
+      const story = await prisma.story.findFirst({ where: { id: storyId, userId: req.userId } });
+      if (!story) return res.status(404).json({ error: 'Hikaye bulunamadı' });
+
+      const entities = await prisma.storyEntity.findMany({
+        where: { storyId },
+        select: {
+          id: true, type: true, name: true, description: true,
+          status: true, statusHistory: true, relationships: true,
+          importance: true, firstSeen: true, lastSeen: true,
+        },
+        orderBy: { importance: 'desc' },
+      });
+
+      const lore = await prisma.storyLore.findMany({
+        where: { storyId, isCanon: true },
+        select: { id: true, category: true, title: true, content: true },
+        orderBy: { category: 'asc' },
+      });
+
+      res.json({
+        codex: {
+          characters: entities.filter((e) => e.type === 'character'),
+          locations: entities.filter((e) => e.type === 'location'),
+          items: entities.filter((e) => e.type === 'object'),
+          factions: entities.filter((e) => e.type === 'faction'),
+          lore,
+        },
+        totalEntities: entities.length,
+      });
+    } catch (err) { next(err); }
+  },
+
+  // === Story Timeline ===
+  async getStoryTimeline(req, res, next) {
+    try {
+      const storyId = parseInt(req.params.id, 10);
+      const story = await prisma.story.findFirst({ where: { id: storyId, userId: req.userId } });
+      if (!story) return res.status(404).json({ error: 'Hikaye bulunamadı' });
+
+      const events = await prisma.storyEvent.findMany({
+        where: { storyId },
+        select: {
+          id: true, chapterNum: true, description: true,
+          impact: true, entities: true, isResolved: true,
+        },
+        orderBy: { chapterNum: 'asc' },
+      });
+
+      // Group by chapter
+      const byChapter = {};
+      for (const event of events) {
+        const ch = event.chapterNum;
+        if (!byChapter[ch]) byChapter[ch] = [];
+        byChapter[ch].push(event);
+      }
+
+      res.json({ events, byChapter, totalEvents: events.length });
+    } catch (err) { next(err); }
+  },
+
+  // === Enhanced User Stats ===
+  async getReadingStats(req, res, next) {
+    try {
+      const userId = req.userId;
+
+      const [stories, chapters, genreCounts] = await Promise.all([
+        prisma.story.count({ where: { userId } }),
+        prisma.chapter.count({ where: { story: { userId } } }),
+        prisma.story.groupBy({
+          by: ['genre'],
+          where: { userId },
+          _count: { genre: true },
+          orderBy: { _count: { genre: 'desc' } },
+        }),
+      ]);
+
+      // Estimate total words from chapter count (avg 1000 words/chapter)
+      const estimatedWords = chapters * 1000;
+
+      // Genre breakdown
+      const genres = genreCounts.map((g) => ({
+        genre: g.genre,
+        count: g._count.genre,
+      }));
+
+      // Favorite genre
+      const favoriteGenre = genres.length > 0 ? genres[0].genre : null;
+
+      const stats = await prisma.userStats.findUnique({ where: { userId } });
+
+      res.json({
+        totalStories: stories,
+        totalChapters: chapters,
+        estimatedWords,
+        favoriteGenre,
+        genreBreakdown: genres,
+        completedStories: stats?.storiesCompleted ?? 0,
+        dailyStreak: stats?.dailyStreak ?? 0,
+        longestStreak: stats?.longestStreak ?? 0,
+      });
+    } catch (err) { next(err); }
+  },
 };

@@ -85,6 +85,7 @@ model Story {
   entities      StoryEntity[]
   events        StoryEvent[]
   worldStates   StoryWorldState[]
+  loreEntries   StoryLore[]
 
   @@map("stories")
 }
@@ -102,6 +103,7 @@ model Chapter {
   imageData      String?  @map("image_data")
   interactionId  String   @map("interaction_id")
   summary        String?  @map("chapter_summary")
+  quickSummary   String?  @map("quick_summary")
   createdAt      DateTime @default(now()) @map("created_at")
 
   @@map("chapters")
@@ -375,41 +377,48 @@ model DeviceToken {
 // ─── Story Entity (RAG Memory - Characters, Locations, Objects) ──
 
 model StoryEntity {
-  id          Int      @id @default(autoincrement())
-  storyId     Int      @map("story_id")
-  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  type        String   // "character" | "location" | "object" | "faction"
-  name        String
-  description String   @db.Text
-  attributes  Json     @default("{}")
-  embedding   Unsupported("vector(768)")?
-  firstSeen   Int      @default(1) @map("first_seen")
-  lastSeen    Int      @default(1) @map("last_seen")
-  importance  Float    @default(0.5)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               Int      @id @default(autoincrement())
+  storyId          Int      @map("story_id")
+  story            Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  type             String   // "character" | "location" | "object" | "faction"
+  name             String
+  description      String   @db.Text
+  attributes       Json     @default("{}")
+  embedding        Unsupported("vector(768)")?
+  firstSeen        Int      @default(1) @map("first_seen")
+  lastSeen         Int      @default(1) @map("last_seen")
+  importance       Float    @default(0.5)
+  status           String   @default("active") // "active" | "dead" | "missing" | "transformed" | "inactive"
+  statusHistory    Json     @default("[]") @map("status_history") // [{chapter, from, to, reason}]
+  relationships    Json     @default("[]") // [{targetName, type, since, description}]
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   @@unique([storyId, type, name])
   @@index([storyId, type])
   @@index([storyId, importance])
+  @@index([storyId, status])
   @@map("story_entities")
 }
 
 // ─── Story Event (RAG Memory - Important Plot Events) ────────────
 
 model StoryEvent {
-  id          Int      @id @default(autoincrement())
-  storyId     Int      @map("story_id")
-  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  chapterNum  Int      @map("chapter_num")
-  description String   @db.Text
-  impact      String   @default("minor") // "major" | "minor" | "twist"
-  entities    String[] // Related entity names
-  embedding   Unsupported("vector(768)")?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  storyId        Int      @map("story_id")
+  story          Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  chapterNum     Int      @map("chapter_num")
+  description    String   @db.Text
+  impact         String   @default("minor") // "major" | "minor" | "twist"
+  entities       String[] // Related entity names
+  embedding      Unsupported("vector(768)")?
+  relevanceDecay Float    @default(1.0) @map("relevance_decay")
+  isResolved     Boolean  @default(false) @map("is_resolved")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([storyId, chapterNum])
   @@index([storyId, impact])
+  @@index([storyId, isResolved])
   @@map("story_events")
 }
 
@@ -442,4 +451,23 @@ model TokenUsage {
   @@index([userId, createdAt])
   @@index([storyId])
   @@map("token_usage")
+}
+
+// ─── Story Lore (World-building Knowledge Base) ──────────────────
+
+model StoryLore {
+  id        Int      @id @default(autoincrement())
+  storyId   Int      @map("story_id")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  category  String   // "rule" | "history" | "geography" | "magic_system" | "culture" | "technology"
+  title     String
+  content   String   @db.Text
+  embedding Unsupported("vector(768)")?
+  isCanon   Boolean  @default(true) @map("is_canon")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([storyId, category])
+  @@index([storyId, isCanon])
+  @@map("story_lore")
 }

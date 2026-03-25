@@ -18,12 +18,14 @@ class StoryProvider extends ChangeNotifier {
   String? _error;
   bool _isStreaming = false;
   String _streamingText = '';
+  String _agentStatus = '';
 
   StoryProvider(ApiService apiService, this._socketService, this._offlineService) {
     _storyService = StoryService(apiService);
     _socketService.onStoryChunk(_onStoryChunk);
     _socketService.onStoryComplete(_onStoryComplete);
     _socketService.onStoryError(_onStoryError);
+    _socketService.onStoryStatus(_onStoryStatus);
   }
 
   List<Story> get stories => _stories;
@@ -33,6 +35,7 @@ class StoryProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isStreaming => _isStreaming;
   String get streamingText => _streamingText;
+  String get agentStatus => _agentStatus;
 
   Future<void> loadStories() async {
     _loading = true;
@@ -166,12 +169,19 @@ class StoryProvider extends ChangeNotifier {
   void _onStoryChunk(Map<String, dynamic> data) {
     final text = data['text'] as String? ?? '';
     _streamingText += text;
+    _agentStatus = 'writing';
+    notifyListeners();
+  }
+
+  void _onStoryStatus(Map<String, dynamic> data) {
+    _agentStatus = data['status'] as String? ?? '';
     notifyListeners();
   }
 
   void _onStoryComplete(Map<String, dynamic> data) {
     _isStreaming = false;
     _streamingText = '';
+    _agentStatus = '';
     if (data['story'] != null) {
       final story = Story.fromJson(Map<String, dynamic>.from(data['story'] as Map));
       _currentStory = story;
@@ -190,6 +200,7 @@ class StoryProvider extends ChangeNotifier {
   void _onStoryError(Map<String, dynamic> data) {
     _isStreaming = false;
     _streamingText = '';
+    _agentStatus = '';
     _error = data['error'] as String? ?? 'Bir hata oluştu';
     _choosing = false;
     _loading = false;
@@ -200,6 +211,7 @@ class StoryProvider extends ChangeNotifier {
     _loading = true;
     _isStreaming = true;
     _streamingText = '';
+    _agentStatus = 'memory';
     _error = null;
     notifyListeners();
     _socketService.emitCreateStoryStream(genre, mood: mood, language: language);
@@ -209,6 +221,7 @@ class StoryProvider extends ChangeNotifier {
     _choosing = true;
     _isStreaming = true;
     _streamingText = '';
+    _agentStatus = 'memory';
     _error = null;
     notifyListeners();
     _socketService.emitChooseStream(storyId, choiceId, imageBase64: imageBase64);
@@ -241,6 +254,7 @@ class StoryProvider extends ChangeNotifier {
     _socketService.removeStoryChunk(_onStoryChunk);
     _socketService.removeStoryComplete(_onStoryComplete);
     _socketService.removeStoryError(_onStoryError);
+    _socketService.removeStoryStatus(_onStoryStatus);
     super.dispose();
   }
 }

@@ -1,5 +1,6 @@
 const prisma = require('../config/database');
 const ai = require('../config/gemini');
+const relationshipGraphService = require('./relationshipGraphService');
 
 const EMBEDDING_MODEL = 'gemini-embedding-2-preview';
 const EMBEDDING_DIMENSIONS = 768;
@@ -246,10 +247,32 @@ async function processChapter(storyId, chapterNum, chapterText, chapterSummary) 
       await saveEvent(storyId, chapterNum, event.description, event.impact, event.involvedEntities);
     }
 
-    // 6. World state güncelle
+    // 6. İlişki ve durum değişikliklerini çıkar ve uygula
+    try {
+      const existingEntities = await prisma.storyEntity.findMany({
+        where: { storyId },
+        select: { type: true, name: true, status: true },
+      });
+
+      const relData = await relationshipGraphService.extractRelationshipsFromChapter(chapterText, existingEntities);
+
+      if (relData.relationships && relData.relationships.length > 0) {
+        await relationshipGraphService.applyRelationships(storyId, chapterNum, relData.relationships);
+      }
+      if (relData.statusChanges && relData.statusChanges.length > 0) {
+        await relationshipGraphService.applyStatusChanges(storyId, chapterNum, relData.statusChanges);
+      }
+    } catch (relErr) {
+      console.error('İlişki çıkarma hatası:', relErr.message);
+    }
+
+    // 7. Eski olayların relevanceDecay'ini güncelle (0.95 çarpanı)
+    await decayEventRelevance(storyId);
+
+    // 8. World state güncelle
     const entities = await prisma.storyEntity.findMany({
       where: { storyId },
-      select: { type: true, name: true, importance: true },
+      select: { type: true, name: true, importance: true, status: true },
       orderBy: { importance: 'desc' },
       take: 20,
     });
@@ -257,9 +280,10 @@ async function processChapter(storyId, chapterNum, chapterText, chapterSummary) 
     const worldState = {
       chapterNumber: chapterNum,
       summary: chapterSummary || '',
-      activeCharacters: entities.filter((e) => e.type === 'character').map((e) => e.name),
-      knownLocations: entities.filter((e) => e.type === 'location').map((e) => e.name),
-      importantItems: entities.filter((e) => e.type === 'item').map((e) => e.name),
+      activeCharacters: entities.filter((e) => e.type === 'character' && e.status === 'active').map((e) => e.name),
+      deadCharacters: entities.filter((e) => e.type === 'character' && e.status === 'dead').map((e) => e.name),
+      knownLocations: entities.filter((e) => e.type === 'location' && e.status === 'active').map((e) => e.name),
+      importantItems: entities.filter((e) => e.type === 'item' && e.status === 'active').map((e) => e.name),
     };
 
     await updateWorldState(storyId, chapterNum, worldState);
@@ -272,7 +296,7 @@ async function processChapter(storyId, chapterNum, chapterText, chapterSummary) 
 
 /**
  * Kullanıcının seçimine göre ilgili entity'leri ve olayları bulur (RAG).
- * pgvector cosine similarity kullanır.
+ * pgvector cosine similarity + relevanceDecay + importance weight kullanır.
  * @param {string} storyId
  * @param {string} choiceText - Kullanıcının seçtiği seçenek metni
  * @param {number} topK - Kaç sonuç döndür
@@ -282,9 +306,9 @@ async function getRelevantContext(storyId, choiceText, topK = 5) {
   // 1. Seçenek metni için query embedding üret
   const queryEmbedding = await getEmbedding(choiceText, 'RETRIEVAL_QUERY');
 
-  // 2. En alakalı entity'leri bul (cosine similarity)
+  // 2. En alakalı entity'leri bul (cosine similarity) — durumları dahil
   const relevantEntities = await prisma.$queryRaw`
-    SELECT id, type, name, description, attributes, importance,
+    SELECT id, type, name, description, attributes, importance, status, relationships,
            1 - (embedding <=> ${queryEmbedding}::vector) as similarity
     FROM story_entities
     WHERE "storyId" = ${storyId}
@@ -292,13 +316,14 @@ async function getRelevantContext(storyId, choiceText, topK = 5) {
     LIMIT ${topK}
   `;
 
-  // 3. En alakalı olayları bul
+  // 3. En alakalı olayları bul — relevanceDecay dahil
   const relevantEvents = await prisma.$queryRaw`
-    SELECT id, "chapterNumber", description, impact, entities,
-           1 - (embedding <=> ${queryEmbedding}::vector) as similarity
+    SELECT id, "chapterNumber", description, impact, entities, relevance_decay, is_resolved,
+           (1 - (embedding <=> ${queryEmbedding}::vector)) * relevance_decay as weighted_similarity
     FROM story_events
     WHERE "storyId" = ${storyId}
-    ORDER BY embedding <=> ${queryEmbedding}::vector
+      AND is_resolved = false
+    ORDER BY weighted_similarity DESC
     LIMIT ${topK}
   `;
 
@@ -317,6 +342,7 @@ async function getRelevantContext(storyId, choiceText, topK = 5) {
 
 /**
  * RAG sonuçlarından geliştirilmiş prompt konteksti oluşturur.
+ * Temporal entity durumları, ilişkiler ve lore bilgilerini içerir.
  * @param {Object} ragContext - getRelevantContext() sonucu
  * @returns {string} - Sisteme eklenecek bağlam metni
  */
@@ -325,14 +351,32 @@ function buildMemoryContext(ragContext) {
 
   let context = '';
 
-  // Entity konteksti
+  // Entity konteksti — durum ve ilişki bilgileri dahil
   if (ragContext.entities?.length > 0) {
     context += '\n## HAFIZA: BİLİNEN VARLIKLAR\n';
     for (const entity of ragContext.entities) {
       const sim = Number(entity.similarity).toFixed(2);
-      context += `- [${entity.type}] **${entity.name}**: ${entity.description} (alakalılık: ${sim})\n`;
+      const status = entity.status || 'active';
+      const statusTag = status !== 'active' ? ` ⚠️ DURUM: ${status.toUpperCase()}` : '';
+      context += `- [${entity.type}] **${entity.name}**: ${entity.description} (alakalılık: ${sim})${statusTag}\n`;
       if (entity.attributes && Object.keys(entity.attributes).length > 0) {
         context += `  Özellikler: ${JSON.stringify(entity.attributes)}\n`;
+      }
+      // İlişkileri göster
+      const rels = Array.isArray(entity.relationships) ? entity.relationships : [];
+      if (rels.length > 0) {
+        for (const rel of rels) {
+          context += `  → ${rel.targetName}: ${rel.type} (bölüm ${rel.since}'den beri)\n`;
+        }
+      }
+    }
+
+    // ÖNEMLİ kural: Ölü/kayıp entity uyarısı
+    const deadOrMissing = ragContext.entities.filter((e) => e.status === 'dead' || e.status === 'missing' || e.status === 'destroyed');
+    if (deadOrMissing.length > 0) {
+      context += '\n⚠️ TEMPORAL KURAL: Aşağıdaki entity\'ler artık aktif DEĞİL — konuşamaz, hareket edemez, kullanılamaz:\n';
+      for (const e of deadOrMissing) {
+        context += `  - ${e.name} (${e.status})\n`;
       }
     }
   }
@@ -341,9 +385,18 @@ function buildMemoryContext(ragContext) {
   if (ragContext.events?.length > 0) {
     context += '\n## HAFIZA: GEÇMİŞ OLAYLAR\n';
     for (const event of ragContext.events) {
-      const sim = Number(event.similarity).toFixed(2);
-      context += `- [Bölüm ${event.chapterNumber}, ${event.impact}] ${event.description} (alakalılık: ${sim})\n`;
+      const sim = Number(event.weighted_similarity || event.similarity || 0).toFixed(2);
+      context += `- [Bölüm ${event.chapterNumber || event.chapterNum}, ${event.impact}] ${event.description} (alakalılık: ${sim})\n`;
     }
+  }
+
+  // Lore konteksti
+  if (ragContext.lore?.length > 0) {
+    context += '\n## HAFIZA: EVREN KURALLARI (LORE)\n';
+    for (const entry of ragContext.lore) {
+      context += `- [${entry.category}] **${entry.title}**: ${entry.content}\n`;
+    }
+    context += 'ÖNEMLİ: Yukarıdaki evren kurallarıyla çelişme. Bu kurallar kesinleşmiş (canon) bilgilerdir.\n';
   }
 
   // World state konteksti
@@ -351,12 +404,13 @@ function buildMemoryContext(ragContext) {
     const ws = ragContext.worldState;
     context += '\n## HAFIZA: GÜNCEL DÜNYA DURUMU\n';
     if (ws.activeCharacters?.length > 0) context += `Aktif Karakterler: ${ws.activeCharacters.join(', ')}\n`;
+    if (ws.deadCharacters?.length > 0) context += `Ölü/Devre Dışı Karakterler: ${ws.deadCharacters.join(', ')}\n`;
     if (ws.knownLocations?.length > 0) context += `Bilinen Mekanlar: ${ws.knownLocations.join(', ')}\n`;
     if (ws.importantItems?.length > 0) context += `Önemli Nesneler: ${ws.importantItems.join(', ')}\n`;
   }
 
   if (context) {
-    context += '\nÖNEMLİ: Yukarıdaki hafıza bilgilerini kullanarak hikayeyi tutarlı devam ettir. Bu bilgilerle çelişme.\n';
+    context += '\nÖNEMLİ: Yukarıdaki hafıza bilgilerini kullanarak hikayeyi tutarlı devam ettir. Bu bilgilerle çelişme. Ölü karakterleri konuşturma.\n';
   }
 
   return context;
@@ -375,16 +429,111 @@ async function trackTokenUsage(userId, storyId, model, inputTokens, outputTokens
   }
 }
 
+/**
+ * Tüm çözülmemiş olayların relevanceDecay'ini 0.95 ile çarpar.
+ * Her yeni bölümde çağrılır — eski olaylar giderek daha az önemli hale gelir.
+ */
+async function decayEventRelevance(storyId) {
+  try {
+    await prisma.$executeRaw`
+      UPDATE story_events
+      SET relevance_decay = relevance_decay * 0.95
+      WHERE "storyId" = ${storyId}
+        AND is_resolved = false
+        AND relevance_decay > 0.1
+    `;
+  } catch (err) {
+    console.error('Event decay hatası:', err.message);
+  }
+}
+
+/**
+ * Lore entry kaydeder veya günceller.
+ */
+async function upsertLore(storyId, category, title, content) {
+  const existing = await prisma.storyLore.findFirst({
+    where: { storyId, category, title },
+  });
+
+  const embedding = await getEmbedding(`${category}: ${title}. ${content}`);
+
+  if (existing) {
+    await prisma.$executeRaw`
+      UPDATE story_lore
+      SET content = ${content.substring(0, 5000)},
+          embedding = ${embedding}::vector,
+          updated_at = NOW()
+      WHERE id = ${existing.id}
+    `;
+  } else {
+    await prisma.$executeRaw`
+      INSERT INTO story_lore (story_id, category, title, content, embedding, is_canon, created_at, updated_at)
+      VALUES (${storyId}, ${category}, ${title}, ${content.substring(0, 5000)}, ${embedding}::vector, true, NOW(), NOW())
+    `;
+  }
+}
+
+/**
+ * Bir hikayenin tüm lore entry'lerini döndürür.
+ */
+async function getLore(storyId) {
+  return prisma.storyLore.findMany({
+    where: { storyId, isCanon: true },
+    orderBy: { category: 'asc' },
+  });
+}
+
+/**
+ * İlgili lore entry'lerini vektör aramasıyla bulur.
+ */
+async function getRelevantLore(storyId, queryText, topK = 5) {
+  const queryEmbedding = await getEmbedding(queryText, 'RETRIEVAL_QUERY');
+
+  return prisma.$queryRaw`
+    SELECT id, category, title, content,
+           1 - (embedding <=> ${queryEmbedding}::vector) as similarity
+    FROM story_lore
+    WHERE story_id = ${storyId} AND is_canon = true
+    ORDER BY embedding <=> ${queryEmbedding}::vector
+    LIMIT ${topK}
+  `;
+}
+
+/**
+ * getRelevantContext'in lore bilgisini de dahil eden genişletilmiş versiyonu.
+ */
+async function getEnrichedContext(storyId, choiceText, topK = 5) {
+  const baseContext = await getRelevantContext(storyId, choiceText, topK);
+
+  // Lore bilgisini de ekle
+  let lore = [];
+  try {
+    lore = await getRelevantLore(storyId, choiceText, 3);
+  } catch {
+    // Lore tablosu henüz yoksa veya boşsa atlama
+  }
+
+  return {
+    ...baseContext,
+    lore,
+  };
+}
+
 module.exports = {
   getEmbedding,
   extractEntitiesFromText,
   processChapter,
   getRelevantContext,
+  getEnrichedContext,
   buildMemoryContext,
   trackTokenUsage,
   upsertEntity,
   saveEvent,
   updateWorldState,
+  decayEventRelevance,
+  upsertLore,
+  getLore,
+  getRelevantLore,
   EMBEDDING_MODEL,
   EMBEDDING_DIMENSIONS,
 };

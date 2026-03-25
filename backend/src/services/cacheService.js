@@ -2,6 +2,10 @@ const { getRedisClient } = require('../config/redis');
 
 const TTL = {
   STORY_CONTEXT: 3600, // 1 saat
+  STORY_ENTITIES: 1800, // 30 dk
+  STORY_RELATIONSHIPS: 1800, // 30 dk
+  STORY_LORE: 3600, // 1 saat
+  STORY_SUMMARY: 7200, // 2 saat
   TOKEN_USAGE: 2592000, // 30 gün
 };
 
@@ -35,14 +39,82 @@ async function getCachedStoryContext(storyId) {
 }
 
 /**
- * Hikaye bağlam cache'ini temizle (yeni bölüm eklendiğinde).
+ * Hikaye bağlam cache'ini ve ilgili tüm alt cache'leri temizle.
  */
 async function invalidateStoryContext(storyId) {
   try {
     const redis = getRedisClient();
-    await redis.del(`story:context:${storyId}`);
+    await redis.del(
+      `story:context:${storyId}`,
+      `story:entities:${storyId}`,
+      `story:relationships:${storyId}`,
+      `story:lore:${storyId}`,
+      `story:summary:${storyId}`,
+    );
   } catch (err) {
     console.error('Cache invalidate error:', err.message);
+  }
+}
+
+/**
+ * Entity listesini cache'le.
+ */
+async function cacheEntities(storyId, entities) {
+  try {
+    const redis = getRedisClient();
+    await redis.set(`story:entities:${storyId}`, JSON.stringify(entities), 'EX', TTL.STORY_ENTITIES);
+  } catch (err) {
+    console.error('Entity cache error:', err.message);
+  }
+}
+
+/**
+ * Cache'lenmiş entity listesini getir.
+ */
+async function getCachedEntities(storyId) {
+  try {
+    const redis = getRedisClient();
+    const data = await redis.get(`story:entities:${storyId}`);
+    return data ? JSON.parse(data) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Lore bilgisini cache'le.
+ */
+async function cacheLore(storyId, lore) {
+  try {
+    const redis = getRedisClient();
+    await redis.set(`story:lore:${storyId}`, JSON.stringify(lore), 'EX', TTL.STORY_LORE);
+  } catch (err) {
+    console.error('Lore cache error:', err.message);
+  }
+}
+
+/**
+ * Cache'lenmiş lore bilgisini getir.
+ */
+async function getCachedLore(storyId) {
+  try {
+    const redis = getRedisClient();
+    const data = await redis.get(`story:lore:${storyId}`);
+    return data ? JSON.parse(data) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Latest summary'yi cache'le.
+ */
+async function cacheLatestSummary(storyId, summary) {
+  try {
+    const redis = getRedisClient();
+    await redis.set(`story:summary:${storyId}`, summary, 'EX', TTL.STORY_SUMMARY);
+  } catch (err) {
+    console.error('Summary cache error:', err.message);
   }
 }
 
@@ -86,6 +158,11 @@ module.exports = {
   cacheStoryContext,
   getCachedStoryContext,
   invalidateStoryContext,
+  cacheEntities,
+  getCachedEntities,
+  cacheLore,
+  getCachedLore,
+  cacheLatestSummary,
   trackDailyTokens,
   getDailyTokenUsage,
 };

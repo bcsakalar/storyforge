@@ -76,6 +76,21 @@ async function showStory(req, res, next) {
     }
     const characters = await characterService.getCharacters(storyId);
     const shared = await prisma.sharedStory.findFirst({ where: { storyId, userId: req.session.userId } });
+
+    // Codex data: entities + lore for sidebar
+    const [codexEntities, codexLore] = await Promise.all([
+      prisma.storyEntity.findMany({
+        where: { storyId },
+        select: { type: true, name: true, description: true, status: true, relationships: true, importance: true },
+        orderBy: { importance: 'desc' },
+      }),
+      prisma.storyLore.findMany({
+        where: { storyId, isCanon: true },
+        select: { category: true, title: true, content: true },
+        orderBy: { category: 'asc' },
+      }),
+    ]);
+
     const flashMessage = req.session.flashMessage || null;
     if (flashMessage) delete req.session.flashMessage;
     res.render('pages/story', {
@@ -85,6 +100,8 @@ async function showStory(req, res, next) {
       characters,
       isShared: !!shared,
       flashMessage,
+      codexEntities,
+      codexLore,
     });
   } catch (err) {
     next(err);

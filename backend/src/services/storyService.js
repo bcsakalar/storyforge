@@ -3,6 +3,7 @@ const geminiService = require('./geminiService');
 const characterService = require('./characterService');
 const storyMemoryService = require('./storyMemoryService');
 const cacheService = require('./cacheService');
+const agentOrchestratorService = require('./agentOrchestratorService');
 
 const RECENT_CHAPTERS_COUNT = 5;
 
@@ -105,26 +106,22 @@ async function makeChoice(storyId, userId, choiceId, imageBase64 = null) {
   const selectedChoice = choices.find((c) => c.id === choiceId);
   if (!selectedChoice) throw new Error('Geçersiz seçenek');
 
-  // Son N chapter'ı al (context için)
-  const recentChapters = story.chapters.slice(-RECENT_CHAPTERS_COUNT).map((ch) => ({
-    chapterNumber: ch.chapterNumber,
-    content: ch.content,
-    selectedChoiceText: ch.selectedChoice !== null
-      ? ch.choices.find((c) => c.id === ch.selectedChoice)?.text
-      : null,
-  }));
+  const chapterCount = lastChapter.chapterNumber;
+
+  // Dinamik bağlam penceresi: bölüm sayısına göre context miktarını ayarla
+  const recentChapters = getDynamicContext(story.chapters, chapterCount);
 
   // Gemini'ye gönder
   const characters = await characterService.getCharacters(story.id, userId);
 
-  // RAG: İlgili hafıza kontekstini al (cache'den veya pgvector'den)
+  // RAG: İlgili hafıza kontekstini al (enriched: entity + event + lore)
   let memoryContext = '';
   try {
     const cached = await cacheService.getCachedStoryContext(storyId);
     if (cached) {
       memoryContext = cached;
     } else {
-      const ragContext = await storyMemoryService.getRelevantContext(storyId, selectedChoice.text);
+      const ragContext = await storyMemoryService.getEnrichedContext(storyId, selectedChoice.text);
       memoryContext = storyMemoryService.buildMemoryContext(ragContext);
       if (memoryContext) {
         await cacheService.cacheStoryContext(storyId, memoryContext);
@@ -134,14 +131,20 @@ async function makeChoice(storyId, userId, choiceId, imageBase64 = null) {
     console.error('RAG context hatası:', err.message);
   }
 
-  const result = await geminiService.continueStory(
-    story.genre,
-    story.summary,
+  // Multi-Agent Orchestrator ile hikaye devamı
+  const result = await agentOrchestratorService.orchestrateContinuation({
+    storyId,
+    genre: story.genre,
+    summary: story.summary,
     recentChapters,
-    selectedChoice.text,
+    choiceText: selectedChoice.text,
     imageBase64,
-    { mood: story.mood, characters, memoryContext, chapterCount: lastChapter.chapterNumber },
-  );
+    mood: story.mood,
+    characters,
+    language: undefined,
+    memoryContext,
+    chapterCount,
+  });
 
   const { storyData } = result;
   const newChapterNumber = lastChapter.chapterNumber + 1;
@@ -174,13 +177,24 @@ async function makeChoice(storyId, userId, choiceId, imageBase64 = null) {
     }),
   ]);
 
-  // Periyodik özet kontrolü
+  // Periyodik özet kontrolü (her 5 bölümde deep summary)
   if (geminiService.shouldGenerateSummary(newChapterNumber)) {
-    // Özeti arka planda üret (kullanıcıyı bekletme)
     generateAndSaveSummary(story.id).catch((err) => {
       console.error('Özet üretme hatası:', err.message);
     });
   }
+
+  // Her bölüm: quick summary oluştur (arka planda)
+  // Transaction'daki chapter create sonucunu kullanamıyoruz, chapter'ı find edelim
+  prisma.chapter.findFirst({
+    where: { storyId: story.id, chapterNumber: newChapterNumber },
+  }).then((newChapter) => {
+    if (newChapter) {
+      agentOrchestratorService.generateAndSaveQuickSummary(
+        story.id, newChapter.id, storyData.storyText, newChapterNumber,
+      ).catch((err) => console.error('Quick summary hatası:', err.message));
+    }
+  }).catch(() => {});
 
   // Hafıza sistemi: yeni bölümü arka planda işle
   storyMemoryService.processChapter(story.id, newChapterNumber, storyData.storyText, storyData.chapterSummary).catch((err) => {
@@ -216,7 +230,7 @@ async function generateAndSaveSummary(storyId) {
 
   if (!story) return;
 
-  const summary = await geminiService.generateSummary(story.chapters, story.summary);
+  const summary = await geminiService.generateSummary(story.chapters, story.summary, 'deep');
 
   await prisma.story.update({
     where: { id: storyId },
@@ -457,7 +471,7 @@ async function createStoryStream(userId, genre, { mood, language } = {}, onChunk
 /**
  * Streaming: Hikayeyi devam ettirir, chunk callback ile akış sağlar.
  */
-async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk) {
+async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk, onStatus) {
   const story = await prisma.story.findFirst({
     where: { id: storyId, userId },
     include: {
@@ -476,24 +490,22 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
   const selectedChoice = lastChapter.choices.find((c) => c.id === choiceId);
   if (!selectedChoice) throw new Error('Geçersiz seçenek');
 
-  const recentChapters = story.chapters.slice(-RECENT_CHAPTERS_COUNT).map((ch) => ({
-    chapterNumber: ch.chapterNumber,
-    content: ch.content,
-    selectedChoiceText: ch.selectedChoice !== null
-      ? ch.choices.find((c) => c.id === ch.selectedChoice)?.text
-      : null,
-  }));
+  const chapterCount = lastChapter.chapterNumber;
+  const recentChapters = getDynamicContext(story.chapters, chapterCount);
 
   const characters = await characterService.getCharacters(story.id, userId);
 
-  // RAG: İlgili hafıza kontekstini al
+  // Status: Hafıza yükleniyor
+  if (onStatus) onStatus('memory');
+
+  // RAG: İlgili hafıza kontekstini al (enriched)
   let memoryContext = '';
   try {
     const cached = await cacheService.getCachedStoryContext(storyId);
     if (cached) {
       memoryContext = cached;
     } else {
-      const ragContext = await storyMemoryService.getRelevantContext(storyId, selectedChoice.text);
+      const ragContext = await storyMemoryService.getEnrichedContext(storyId, selectedChoice.text);
       memoryContext = storyMemoryService.buildMemoryContext(ragContext);
       if (memoryContext) {
         await cacheService.cacheStoryContext(storyId, memoryContext);
@@ -503,20 +515,31 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
     console.error('RAG context hatası:', err.message);
   }
 
-  const stream = geminiService.continueStoryStream(
-    story.genre,
-    story.summary,
+  // Status: Yazıyor
+  if (onStatus) onStatus('writing');
+
+  const stream = agentOrchestratorService.orchestrateContinuationStream({
+    storyId,
+    genre: story.genre,
+    summary: story.summary,
     recentChapters,
-    selectedChoice.text,
+    choiceText: selectedChoice.text,
     imageBase64,
-    { mood: story.mood, characters, memoryContext, chapterCount: lastChapter.chapterNumber },
-  );
+    mood: story.mood,
+    characters,
+    language: undefined,
+    memoryContext,
+    chapterCount,
+  });
 
   let fullText = '';
   for await (const chunk of stream) {
     fullText += chunk;
     if (onChunk) onChunk(chunk);
   }
+
+  // Status: İşleniyor (DB kayıt + hafıza güncelleme)
+  if (onStatus) onStatus('processing');
 
   const parsed = JSON.parse(fullText);
   const newChapterNumber = lastChapter.chapterNumber + 1;
@@ -548,6 +571,17 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
     });
   }
 
+  // Quick summary arka planda
+  prisma.chapter.findFirst({
+    where: { storyId: story.id, chapterNumber: newChapterNumber },
+  }).then((newChapter) => {
+    if (newChapter) {
+      agentOrchestratorService.generateAndSaveQuickSummary(
+        story.id, newChapter.id, parsed.storyText, newChapterNumber,
+      ).catch((err) => console.error('Quick summary hatası:', err.message));
+    }
+  }).catch(() => {});
+
   // Hafıza sistemi: yeni bölümü arka planda işle
   storyMemoryService.processChapter(story.id, newChapterNumber, parsed.storyText, parsed.chapterSummary).catch((err) => {
     console.error('Hafıza işleme hatası:', err.message);
@@ -557,6 +591,51 @@ async function makeChoiceStream(storyId, userId, choiceId, imageBase64, onChunk)
   cacheService.invalidateStoryContext(storyId).catch(() => {});
 
   return getStoryWithChapters(story.id, userId);
+}
+
+/**
+ * Dinamik Bağlam Penceresi — bölüm sayısına göre context büyüklüğünü ayarlar.
+ * Token bütçesini optimize eder: uzun hikayelerde özetler, kısa hikayelerde tam metin.
+ *
+ * - Bölüm 1-10: Son 5 bölüm tam metin
+ * - Bölüm 11-30: Son 3 tam + önceki bölümlerin özetleri
+ * - Bölüm 31+: Son 2 tam + quickSummary'ler
+ */
+function getDynamicContext(chapters, chapterCount) {
+  const mapChapter = (ch) => ({
+    chapterNumber: ch.chapterNumber,
+    content: ch.content,
+    selectedChoiceText: ch.selectedChoice !== null
+      ? (ch.choices || []).find((c) => c.id === ch.selectedChoice)?.text
+      : null,
+  });
+
+  const mapSummaryOnly = (ch) => ({
+    chapterNumber: ch.chapterNumber,
+    content: ch.quickSummary || ch.summary || ch.content.substring(0, 300) + '...',
+    selectedChoiceText: ch.selectedChoice !== null
+      ? (ch.choices || []).find((c) => c.id === ch.selectedChoice)?.text
+      : null,
+  });
+
+  if (chapterCount <= 10) {
+    // Erken aşama: son 5 bölüm tam metin
+    return chapters.slice(-RECENT_CHAPTERS_COUNT).map(mapChapter);
+  } else if (chapterCount <= 30) {
+    // Orta aşama: son 3 tam + önceki bölümlerin özetleri
+    const fullChapters = chapters.slice(-3).map(mapChapter);
+    const summaryChapters = chapters.slice(-8, -3).map(mapSummaryOnly);
+    return [...summaryChapters, ...fullChapters];
+  } else {
+    // Uzun hikaye: son 2 tam + her 5 bölümün özeti
+    const fullChapters = chapters.slice(-2).map(mapChapter);
+    // Her 5. bölümün özetini al
+    const milestoneChapters = chapters
+      .filter((ch) => ch.chapterNumber % 5 === 0 && ch.chapterNumber < chapterCount - 2)
+      .slice(-6) // Son 6 milestone yeterli
+      .map(mapSummaryOnly);
+    return [...milestoneChapters, ...fullChapters];
+  }
 }
 
 module.exports = {

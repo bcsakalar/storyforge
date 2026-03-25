@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test": "jest --forceExit --detectOpenHandles",
+    "test:watch": "jest --watch --forceExit --detectOpenHandles",
     "prisma:generate": "npx prisma generate",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:studio": "npx prisma studio"
@@ -25,15 +27,16 @@
     "firebase-admin": "^13.4.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
+    "ioredis": "^5.6.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
     "node-cron": "^3.0.3",
     "puppeteer": "^24.8.2",
     "socket.io": "^4.7.5",
-    "ioredis": "^5.6.0",
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "jest": "^30.3.0",
     "prisma": "^6.4.0"
   }
 }

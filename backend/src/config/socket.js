@@ -137,6 +137,7 @@ function initSocket(httpServer, sessionStore) {
         const story = await storyService.makeChoiceStream(
           storyId, userId, parseInt(choiceId, 10), imageBase64 || null,
           (chunk) => socket.emit('story:chunk', { text: chunk, storyId }),
+          (status) => socket.emit('story:status', { status, storyId }),
         );
 
         levelService.addXp(userId, 'chapter').catch(() => {});

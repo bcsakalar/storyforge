@@ -31,6 +31,8 @@ router.post('/stories/:id/chapters/:chapterNum/tts', apiController.chapterTts);
 router.get('/stories/:id/tree', apiController.getStoryTree);
 router.post('/stories/:id/branch/:chapterId', apiController.branchFromChapter);
 router.get('/stories/:id/recap', apiController.getRecap);
+router.get('/stories/:id/codex', apiController.getStoryCodex);
+router.get('/stories/:id/timeline', apiController.getStoryTimeline);
 router.post('/stories/:id/complete', apiController.completeStory);
 router.get('/stories/:id/download', apiController.downloadStory);
 router.post('/stories/:id/share', apiController.shareStory);
@@ -88,6 +90,7 @@ router.get('/achievements/all', apiController.getAvailableAchievements);
 
 // Level & XP
 router.get('/level', apiController.getLevelInfo);
+router.get('/stats/reading', apiController.getReadingStats);
 
 // Quests
 router.get('/quests/daily', apiController.getDailyQuests);

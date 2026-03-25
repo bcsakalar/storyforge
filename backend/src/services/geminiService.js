@@ -1,8 +1,8 @@
 const ai = require('../config/gemini');
 
 const MODEL = 'gemini-3-flash-preview';
-const SUMMARY_INTERVAL = 10;
-const CHAIN_RESET_INTERVAL = 20;
+const SUMMARY_INTERVAL = 5;
+const CHAIN_RESET_INTERVAL = 15;
 
 const GENRE_DESCRIPTIONS = {
   fantastik: 'Büyü, ejderhalar, elfler ve destansı savaşlar içeren yüksek fantezi dünyası',
@@ -56,17 +56,20 @@ Hikayede aşağıdaki kullanıcı tanımlı karakterler yer alıyor. Bu karakter
 
 ## KURALLAR
 1. Her yanıtını MUTLAKA aşağıdaki JSON formatında ver. Başka hiçbir şey yazma.
-2. Hikaye metni en az 3-4 paragraf, zengin ve detaylı olmalı.
+2. Hikaye metni EN AZ 8-12 paragraf olmalı, her paragraf 4-6 cümle içermeli. Sahne tasvirleri, karakter diyalogları, iç monologlar ve atmosfer detayları dahil. Minimum 800-1200 kelime hedefle.
 3. Her bölümde 2 ile 4 arasında seçenek sun (kendi kafana göre karar ver).
 4. Seçenekler hikayeyi farklı yönlere çekmeli, her biri anlamlı ve ilginç olmalı.
-5. Önceki olaylarla ASLA çelişme. Tutarlılığı koru.
-6. Karakterlerin isimleri, özellikleri ve ilişkileri tutarlı olmalı.
+5. Önceki olaylarla ASLA çelişme. Tutarlılığı koru. HAFIZA bölümünde verilen entity durumlarına (aktif/ölü/kayıp) kesinlikle uy.
+6. Karakterlerin isimleri, özellikleri ve ilişkileri tutarlı olmalı. İlişki değişimlerini doğal yansıt.
 7. Atmosferi türe uygun tut.
 8. Her bölümün sonunda gerilim veya merak unsuru olsun.
-9. "chapterSummary" alanında bu bölümde olan önemli olayları kısaca özetle (1-2 cümle).
+9. "chapterSummary" alanında bu bölümde olan önemli olayları kısaca özetle (2-3 cümle).
 10. HER ŞEYİ ${langText} yaz.
 11. Karakter isimleri MUTLAKA benzersiz, yaratıcı ve nadir olmalı. "Elif", "Ali", "Ayşe", "Mehmet", "Zeynep", "Ahmet", "Fatma", "Mustafa", "Emre", "Burak" gibi sık kullanılan isimleri ASLA kullanma. Bunun yerine farklı kültürlerden, mitolojilerden veya tamamen özgün isimler tercih et.
 12. Her hikayede tamamen orijinal bir dünya, olay örgüsü ve karakterler oluştur. Klişe açılışlardan ve kalıplardan kaçın. Sürpriz ve yaratıcılık ön planda olsun.
+13. Diyalog sahneleri MUTLAKA olmalı — karakterlerin konuşmaları, düşünceleri ve hisleri detaylı aktarılmalı.
+14. Her bölümde en az bir sahne geçişi veya zaman atlaması olmalı, sahne geçişlerini "***" ile ayır.
+15. Mekan tasvirlerini zenginleştir — ses, koku, dokunma duyuları dahil et.
 
 ## JSON FORMAT
 \`\`\`json
@@ -123,6 +126,7 @@ async function startNewStory(genre, { mood, characters, language } = {}) {
       responseMimeType: 'application/json',
       temperature: 0.9,
       topP: 0.95,
+      maxOutputTokens: 8192,
     },
   });
 
@@ -183,8 +187,9 @@ async function continueStory(genre, summary, recentChapters, choiceText, imageBa
       responseMimeType: 'application/json',
       temperature: 0.85,
       topP: 0.95,
-      // Thinking mode: uzun hikayelerde daha tutarlı içerik üretimi
-      ...(chapterCount >= 20 && { thinkingConfig: { thinkingBudget: 1024 } }),
+      maxOutputTokens: 8192,
+      // Thinking mode: 10+ bölümde derin akıl yürütme
+      ...(chapterCount >= 10 && { thinkingConfig: { thinkingBudget: 2048 } }),
     },
   });
 
@@ -202,15 +207,31 @@ async function continueStory(genre, summary, recentChapters, choiceText, imageBa
  * Hikayenin kapsamlı özetini üretir (hafıza yenileme).
  * @param {Array} allChapters - Tüm chapter'ların listesi
  * @param {string} currentSummary - Mevcut özet (varsa)
+ * @param {string} mode - 'deep' (kapsamlı, her 5 bölüm) | 'quick' (kısa, her bölüm)
  */
-async function generateSummary(allChapters, currentSummary = '') {
+async function generateSummary(allChapters, currentSummary = '', mode = 'deep') {
+  if (mode === 'quick') {
+    // Son bölümün hızlı özeti (2-3 cümle)
+    const lastChapter = allChapters[allChapters.length - 1];
+    const quickPrompt = `Aşağıdaki hikaye bölümünün 2-3 cümlelik kısa bir özetini yaz. Sadece yeni olayları ve önemli değişiklikleri belirt. Başka bir şey yazma.\n\nBÖLÜM ${lastChapter.chapterNumber}:\n${lastChapter.content}`;
+
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: quickPrompt,
+      config: { temperature: 0.2, topP: 0.9, maxOutputTokens: 512 },
+    });
+    return response.text;
+  }
+
+  // Deep summary (kapsamlı)
   let prompt = 'Aşağıdaki hikaye bölümlerinin kapsamlı bir özetini oluştur. ';
   prompt += 'Özet şunları içermeli:\n';
-  prompt += '1. Ana karakterler ve özellikleri\n';
+  prompt += '1. Ana karakterler, özellikleri ve mevcut durumları (aktif/ölü/kayıp)\n';
   prompt += '2. Önemli olaylar kronolojik sırayla\n';
-  prompt += '3. Mevcut durum ve açık kalan konular\n';
-  prompt += '4. Karakter ilişkileri\n';
-  prompt += '5. Önemli mekanlar ve nesneler\n\n';
+  prompt += '3. Mevcut durum ve açık kalan konular / çözülmemiş gerilimler\n';
+  prompt += '4. Karakter ilişkileri ve değişimleri (düşman→dost gibi)\n';
+  prompt += '5. Önemli mekanlar ve nesneler\n';
+  prompt += '6. Evren kuralları ve keşfedilen sistemler\n\n';
 
   if (currentSummary) {
     prompt += `MEVCUT ÖZET:\n${currentSummary}\n\n`;
@@ -229,6 +250,7 @@ async function generateSummary(allChapters, currentSummary = '') {
     config: {
       temperature: 0.3,
       topP: 0.9,
+      maxOutputTokens: 4096,
     },
   });
 
@@ -420,7 +442,8 @@ async function* continueStoryStream(genre, summary, recentChapters, choiceText, 
       responseMimeType: 'application/json',
       temperature: 0.85,
       topP: 0.95,
-      ...(chapterCount >= 20 && { thinkingConfig: { thinkingBudget: 1024 } }),
+      maxOutputTokens: 8192,
+      ...(chapterCount >= 10 && { thinkingConfig: { thinkingBudget: 2048 } }),
     },
   });
 

@@ -1,5 +1,27 @@
 <%- include('../layout', { body: `
-<div style="max-width: 720px; margin: 0 auto;">
+<div style="max-width: 720px; margin: 0 auto;" data-genre="${story.genre}">
+  <style nonce="${cspNonce}">
+    [data-genre="korku"] .sf-accent-color { color: #CC3333 !important; }
+    [data-genre="korku"] .sf-btn-accent { background: #CC3333 !important; }
+    [data-genre="korku"] .sf-selected-choice { border-color: #CC3333 !important; }
+    [data-genre="korku"] .sf-chapter-num { color: #CC3333 !important; }
+    [data-genre="bilim_kurgu"] .sf-accent-color { color: #00D4AA !important; }
+    [data-genre="bilim_kurgu"] .sf-btn-accent { background: #00D4AA !important; }
+    [data-genre="bilim_kurgu"] .sf-selected-choice { border-color: #00D4AA !important; }
+    [data-genre="bilim_kurgu"] .sf-chapter-num { color: #00D4AA !important; }
+    [data-genre="romantik"] .sf-accent-color { color: #E8A0BF !important; }
+    [data-genre="romantik"] .sf-btn-accent { background: #E8A0BF !important; }
+    [data-genre="romantik"] .sf-selected-choice { border-color: #E8A0BF !important; }
+    [data-genre="romantik"] .sf-chapter-num { color: #E8A0BF !important; }
+    [data-genre="macera"] .sf-accent-color { color: #E8A020 !important; }
+    [data-genre="macera"] .sf-btn-accent { background: #E8A020 !important; }
+    [data-genre="macera"] .sf-selected-choice { border-color: #E8A020 !important; }
+    [data-genre="macera"] .sf-chapter-num { color: #E8A020 !important; }
+    [data-genre="gizem"] .sf-accent-color { color: #8B6FCF !important; }
+    [data-genre="gizem"] .sf-btn-accent { background: #8B6FCF !important; }
+    [data-genre="gizem"] .sf-selected-choice { border-color: #8B6FCF !important; }
+    [data-genre="gizem"] .sf-chapter-num { color: #8B6FCF !important; }
+  </style>
   <a href="/dashboard" class="sf-back">&larr; Hikayelerime Dön</a>
   ${typeof flashMessage !== 'undefined' && flashMessage ? '<div class=\"sf-flash-warning\" style=\"background: #3a2e00; border: 1px solid #5a4600; color: #e8c547; padding: 12px 16px; margin-bottom: 16px; font-size: 0.85rem; border-radius: 2px;\">' + flashMessage + '</div>' : ''}
   <div class="sf-story-header">
@@ -35,6 +57,54 @@
     </details>
   </div>
 
+  <!-- Codex / Ansiklopedi -->
+  ${(typeof codexEntities !== 'undefined' && codexEntities.length > 0) || (typeof codexLore !== 'undefined' && codexLore.length > 0) ? `
+  <div class="sf-characters-section">
+    <details>
+      <summary class="sf-section-label" style="cursor: pointer;">ANSİKLOPEDİ (${codexEntities.length} varlık)</summary>
+      <div style="padding: 12px 0;">
+        ${['character', 'location', 'object', 'faction'].map(function(type) {
+          var typeLabels = { character: 'KARAKTERLER', location: 'MEKANLAR', object: 'EŞYALAR', faction: 'GRUPLAR' };
+          var statusColors = { active: '#4CAF50', dead: '#CC3333', missing: '#E8A020', transformed: '#8B6FCF' };
+          var items = codexEntities.filter(function(e) { return e.type === type; });
+          if (items.length === 0) return '';
+          return '<div style="margin-bottom: 16px;">' +
+            '<div class="sf-section-label" style="font-size: 0.65rem; margin-bottom: 8px;">' + typeLabels[type] + ' (' + items.length + ')</div>' +
+            items.map(function(entity) {
+              var statusColor = statusColors[entity.status] || '#888';
+              var rels = '';
+              if (entity.relationships && Array.isArray(entity.relationships) && entity.relationships.length > 0) {
+                rels = '<div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">' +
+                  entity.relationships.map(function(r) {
+                    return '<span style="font-size: 0.65rem; padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 2px; color: #aaa;">' + (r.target || '') + ' · ' + (r.type || '') + '</span>';
+                  }).join('') + '</div>';
+              }
+              return '<div style="padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.02); border-left: 2px solid ' + statusColor + ';">' +
+                '<div style="display: flex; align-items: center; gap: 8px;">' +
+                  '<strong style="font-size: 0.85rem;">' + entity.name + '</strong>' +
+                  '<span style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px; color: ' + statusColor + ';">' + entity.status + '</span>' +
+                  '<span style="font-size: 0.6rem; color: #666;">' + '●'.repeat(Math.min(entity.importance || 1, 5)) + '</span>' +
+                '</div>' +
+                (entity.description ? '<p style="font-size: 0.8rem; color: #999; margin: 4px 0 0; line-height: 1.5;">' + entity.description + '</p>' : '') +
+                rels +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }).join('')}
+        ${codexLore.length > 0 ? '<div style="margin-top: 16px;">' +
+          '<div class="sf-section-label" style="font-size: 0.65rem; margin-bottom: 8px;">BİLGİ / LORE (' + codexLore.length + ')</div>' +
+          codexLore.map(function(l) {
+            return '<div style="padding: 10px 12px; margin-bottom: 6px; background: rgba(139,111,207,0.05); border-left: 2px solid #8B6FCF;">' +
+              '<div style="font-size: 0.8rem; font-weight: 500;">' + l.title + '</div>' +
+              '<p style="font-size: 0.75rem; color: #999; margin: 4px 0 0; line-height: 1.5;">' + l.content + '</p>' +
+            '</div>';
+          }).join('') +
+        '</div>' : ''}
+      </div>
+    </details>
+  </div>
+  ` : ''}
+
   <div id="storyContainer">
     ${story.chapters.map((chapter, index) => `
       <div class="sf-chapter">
@@ -54,7 +124,14 @@
           </div>
         </div>
         <div class="sf-chapter-text">
-          ${chapter.content.split('\\n').map(p => p.trim() ? '<p>' + p.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' : '').join('')}
+          ${chapter.content.split('\\n').map(p => {
+            var trimmed = p.trim();
+            if (!trimmed) return '';
+            if (/^[\\*\\-]{3,}$/.test(trimmed)) return '<div class="sf-scene-separator"><span>***</span></div>';
+            var isDialogue = trimmed.startsWith('—') || trimmed.startsWith('"') || trimmed.startsWith('«') || trimmed.startsWith('\\u201C');
+            var safe = trimmed.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return isDialogue ? '<p class="sf-dialogue">' + safe + '</p>' : '<p>' + safe + '</p>';
+          }).join('')}
         </div>
 
         ${chapter.selectedChoice !== null ? `
@@ -65,12 +142,9 @@
           <div class="sf-choices" id="choicesSection">
             <h5>Ne yapacaksın?</h5>
             ${chapter.choices.map(choice => `
-              <form method="POST" action="/story/${story.id}/choose" class="sf-choice-form">
-                <input type="hidden" name="choiceId" value="${choice.id}">
-                <button type="submit" class="sf-choice-btn">
-                  <span class="num">${choice.id}.</span>${choice.text}
-                </button>
-              </form>
+              <button type="button" class="sf-choice-btn" data-choice-id="${choice.id}" data-story-id="${story.id}" onclick="streamChoice(this)">
+                <span class="num">${choice.id}.</span>${choice.text}
+              </button>
             `).join('')}
           </div>
         ` : ''}
@@ -80,7 +154,19 @@
 
   <div id="loadingIndicator" class="sf-loading" style="display: none;">
     <div class="sf-spinner"></div>
-    <p>Hikaye devam ediyor...</p>
+    <div class="sf-agent-status" id="agentStatus">
+      <div class="sf-agent-step"><div class="sf-agent-dot" id="dot-memory"></div><span class="sf-agent-label" id="label-memory">HAFIZA</span></div>
+      <div class="sf-agent-connector" id="conn-1"></div>
+      <div class="sf-agent-step"><div class="sf-agent-dot" id="dot-writing"></div><span class="sf-agent-label" id="label-writing">YAZIYOR</span></div>
+      <div class="sf-agent-connector" id="conn-2"></div>
+      <div class="sf-agent-step"><div class="sf-agent-dot" id="dot-processing"></div><span class="sf-agent-label" id="label-processing">İŞLENİYOR</span></div>
+    </div>
+    <p id="loadingText">Hikaye devam ediyor...</p>
+  </div>
+
+  <div id="streamingContainer" class="sf-streaming-chapter" style="display: none;">
+    <div class="sf-chapter-num" id="streamingChapterNum"></div>
+    <div class="sf-streaming-text" id="streamingText"><span class="sf-cursor"></span></div>
   </div>
 </div>
 `, extraScripts: `
@@ -92,14 +178,137 @@
     }
   });
 
-  document.querySelectorAll('.sf-choice-form').forEach(function(form) {
-    form.addEventListener('submit', function() {
-      var section = document.getElementById('choicesSection');
-      if (section) section.style.display = 'none';
-      document.getElementById('loadingIndicator').style.display = 'block';
-      form.querySelector('button').disabled = true;
+  // === Streaming choice handler ===
+  var streamingFullText = '';
+  var isStreamActive = false;
+
+  function streamChoice(btn) {
+    if (isStreamActive) return;
+    var storyId = parseInt(btn.getAttribute('data-story-id'));
+    var choiceId = parseInt(btn.getAttribute('data-choice-id'));
+
+    // Check socket availability, fallback to form POST
+    if (typeof window.sfSocket === 'undefined' || !window.sfSocket.connected) {
+      // Fallback: create form and submit
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/story/' + storyId + '/choose';
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'choiceId';
+      input.value = choiceId;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      return;
+    }
+
+    isStreamActive = true;
+    streamingFullText = '';
+
+    // Hide choices, show loading + streaming
+    var section = document.getElementById('choicesSection');
+    if (section) section.style.display = 'none';
+    document.getElementById('loadingIndicator').style.display = 'block';
+    updateAgentStatus('memory');
+
+    var chapterCount = document.querySelectorAll('.sf-chapter').length;
+    var streamContainer = document.getElementById('streamingContainer');
+    var streamText = document.getElementById('streamingText');
+    document.getElementById('streamingChapterNum').textContent = 'Bölüm ' + (chapterCount + 1);
+    streamText.innerHTML = '<span class="sf-cursor"></span>';
+    streamContainer.style.display = 'none';
+
+    // Emit streaming event
+    window.sfSocket.emit('story:chooseStream', { storyId: storyId, choiceId: choiceId });
+  }
+
+  // Listen for streaming events
+  if (typeof window.sfSocket !== 'undefined') {
+    window.sfSocket.on('story:status', function(data) {
+      updateAgentStatus(data.status);
     });
-  });
+
+    window.sfSocket.on('story:chunk', function(data) {
+      if (!isStreamActive) return;
+      streamingFullText += (data.text || '');
+      updateAgentStatus('writing');
+
+      // Show streaming container, hide loading spinner
+      var streamContainer = document.getElementById('streamingContainer');
+      var streamText = document.getElementById('streamingText');
+      streamContainer.style.display = 'block';
+      document.getElementById('loadingIndicator').style.display = 'none';
+
+      // Extract story text from JSON stream
+      var displayText = extractStoryText(streamingFullText);
+      if (displayText) {
+        streamText.innerHTML = formatContent(displayText) + '<span class="sf-cursor"></span>';
+        streamContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    });
+
+    window.sfSocket.on('story:complete', function(data) {
+      if (!isStreamActive) return;
+      isStreamActive = false;
+      // Reload page to show the final chapter properly
+      window.location.reload();
+    });
+
+    window.sfSocket.on('story:error', function(data) {
+      if (!isStreamActive) return;
+      isStreamActive = false;
+      document.getElementById('loadingIndicator').style.display = 'none';
+      document.getElementById('streamingContainer').style.display = 'none';
+      var section = document.getElementById('choicesSection');
+      if (section) section.style.display = 'block';
+      alert(data.error || 'Bir hata oluştu');
+    });
+  }
+
+  function extractStoryText(accumulated) {
+    var key = '"storyText":"';
+    var start = accumulated.indexOf(key);
+    if (start === -1) return '';
+    var text = accumulated.substring(start + key.length);
+    var endPatterns = ['","choices"', '","mood"', '","chapterSummary"'];
+    var endIdx = text.length;
+    for (var i = 0; i < endPatterns.length; i++) {
+      var idx = text.indexOf(endPatterns[i]);
+      if (idx !== -1 && idx < endIdx) endIdx = idx;
+    }
+    text = text.substring(0, endIdx);
+    text = text.replace(/\\\\n/g, '\\n').replace(/\\\\"/g, '"').replace(/\\\\\\\\/g, '\\\\');
+    return text;
+  }
+
+  function formatContent(text) {
+    return text.split('\\n').map(function(p) {
+      var t = p.trim();
+      if (!t) return '';
+      if (/^[\\*\\-]{3,}$/.test(t)) return '<div class="sf-scene-separator"><span>***</span></div>';
+      var safe = t.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      var isDlg = t.startsWith('\\u2014') || t.startsWith('"') || t.startsWith('\\u00AB') || t.startsWith('\\u201C');
+      return isDlg ? '<p class="sf-dialogue">' + safe + '</p>' : '<p>' + safe + '</p>';
+    }).join('');
+  }
+
+  function updateAgentStatus(status) {
+    var steps = ['memory', 'writing', 'processing'];
+    var currentIdx = steps.indexOf(status);
+    steps.forEach(function(step, idx) {
+      var dot = document.getElementById('dot-' + step);
+      var label = document.getElementById('label-' + step);
+      if (dot) dot.className = 'sf-agent-dot' + (idx <= currentIdx ? ' active' : '');
+      if (label) label.className = 'sf-agent-label' + (idx === currentIdx ? ' active' : '');
+    });
+    if (document.getElementById('conn-1')) {
+      document.getElementById('conn-1').className = 'sf-agent-connector' + (currentIdx > 0 ? ' active' : '');
+    }
+    if (document.getElementById('conn-2')) {
+      document.getElementById('conn-2').className = 'sf-agent-connector' + (currentIdx > 1 ? ' active' : '');
+    }
+  }
 
   async function loadRecap(storyId) {
     var container = document.getElementById('recapContainer');

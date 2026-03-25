@@ -18,6 +18,17 @@ import '../services/io_helper_stub.dart'
     if (dart.library.io) '../services/io_helper_native.dart';
 import 'story_tree_screen.dart';
 import 'character_creation_screen.dart';
+import 'codex_screen.dart';
+
+/// Genre/mood to accent color mapping for immersive reading
+const Map<String, Color> _genreAccents = {
+  'fantastik': Color(0xFFC9A96E),
+  'korku': Color(0xFFCC3333),
+  'bilim_kurgu': Color(0xFF00D4AA),
+  'romantik': Color(0xFFE8A0BF),
+  'macera': Color(0xFFE8A020),
+  'gizem': Color(0xFF8B6FCF),
+};
 
 class StoryScreen extends StatefulWidget {
   final int storyId;
@@ -31,6 +42,13 @@ class StoryScreen extends StatefulWidget {
 class _StoryScreenState extends State<StoryScreen> {
   final ScrollController _scrollController = ScrollController();
   String? _capturedImageBase64;
+
+  /// Dynamic accent color based on story genre
+  Color get _accent {
+    final story = context.read<StoryProvider>().currentStory;
+    if (story == null) return const Color(0xFFC9A96E);
+    return _genreAccents[story.genre] ?? const Color(0xFFC9A96E);
+  }
 
   @override
   void initState() {
@@ -99,17 +117,17 @@ class _StoryScreenState extends State<StoryScreen> {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (_) => const Center(
+          builder: (_) => Center(
             child: Card(
-              color: Color(0xFF242424),
+              color: const Color(0xFF242424),
               child: Padding(
-                padding: EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFFC9A96E), strokeWidth: 1.5),
-                    SizedBox(height: 16),
-                    Text('Özet oluşturuluyor...', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w300)),
+                    CircularProgressIndicator(color: _accent, strokeWidth: 1.5),
+                    const SizedBox(height: 16),
+                    const Text('Özet oluşturuluyor...', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w300)),
                   ],
                 ),
               ),
@@ -127,7 +145,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 shape: const RoundedRectangleBorder(),
                 title: const Text('ÖZET', style: TextStyle(fontSize: 14, letterSpacing: 2, fontWeight: FontWeight.w500)),
                 content: SingleChildScrollView(child: Text(res.data['recap'] ?? '', style: TextStyle(fontSize: 14, height: 1.7, fontWeight: FontWeight.w300, color: Colors.grey[300]))),
-                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('KAPAT', style: TextStyle(color: Color(0xFFC9A96E))))],
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('KAPAT', style: TextStyle(color: _accent)))],
               ),
             );
           }
@@ -137,6 +155,9 @@ class _StoryScreenState extends State<StoryScreen> {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Özet oluşturulamadı', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red[900], behavior: SnackBarBehavior.floating));
           }
         }
+        break;
+      case 'codex':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => CodexScreen(storyId: widget.storyId, storyTitle: story.title)));
         break;
       case 'tree':
         Navigator.push(context, MaterialPageRoute(builder: (_) => StoryTreeScreen(storyId: widget.storyId, storyTitle: story.title)));
@@ -247,6 +268,7 @@ class _StoryScreenState extends State<StoryScreen> {
                 final isDownloaded = context.read<StoryProvider>().isStoryDownloaded(story.id);
                 return [
                   const PopupMenuItem(value: 'recap', child: Text('Özet', style: TextStyle(fontSize: 13))),
+                  const PopupMenuItem(value: 'codex', child: Text('Ansiklopedi', style: TextStyle(fontSize: 13))),
                   const PopupMenuItem(value: 'tree', child: Text('Hikaye Ağacı', style: TextStyle(fontSize: 13))),
                   const PopupMenuItem(value: 'characters', child: Text('Karakter Ekle', style: TextStyle(fontSize: 13))),
                   const PopupMenuItem(value: 'share', child: Text('Paylaş', style: TextStyle(fontSize: 13))),
@@ -258,7 +280,7 @@ class _StoryScreenState extends State<StoryScreen> {
                         Icon(
                           isDownloaded ? Icons.delete_outline : Icons.download_outlined,
                           size: 18,
-                          color: isDownloaded ? const Color(0xFFAA4444) : const Color(0xFFC9A96E),
+                          color: isDownloaded ? const Color(0xFFAA4444) : _accent,
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -298,6 +320,7 @@ class _StoryScreenState extends State<StoryScreen> {
         if (index == chapters.length && (choosing || isStreaming)) {
           if (isStreaming) {
             final displayText = provider.extractStoryText(provider.streamingText);
+            final agentStatus = provider.agentStatus;
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 4),
               child: Column(
@@ -310,9 +333,12 @@ class _StoryScreenState extends State<StoryScreen> {
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 2, color: Colors.grey[600]),
                       ),
                       const SizedBox(width: 8),
-                      SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1, color: const Color(0xFFC9A96E))),
+                      SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1, color: _accent)),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  // Multi-agent status indicator
+                  _AgentStatusBar(status: agentStatus, accentColor: _accent),
                   const SizedBox(height: 14),
                   if (displayText.isNotEmpty)
                     Text(
@@ -360,6 +386,7 @@ class _StoryScreenState extends State<StoryScreen> {
           onTakePhoto: _takePhoto,
           hasPhoto: _capturedImageBase64 != null,
           apiService: context.read<ApiService>(),
+          accentColor: _accent,
         );
       },
     );
@@ -376,6 +403,7 @@ class _ChapterWidget extends StatefulWidget {
   final VoidCallback onTakePhoto;
   final bool hasPhoto;
   final ApiService apiService;
+  final Color accentColor;
 
   const _ChapterWidget({
     required this.chapter,
@@ -387,6 +415,7 @@ class _ChapterWidget extends StatefulWidget {
     required this.onTakePhoto,
     required this.hasPhoto,
     required this.apiService,
+    required this.accentColor,
   });
 
   @override
@@ -463,6 +492,59 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
     if (mounted) setState(() => _ttsLoading = false);
   }
 
+  /// Formats chapter content with scene separators and dialogue styling
+  Widget _buildFormattedContent(String content, double fontSize) {
+    final lines = content.split('\n');
+    final widgets = <Widget>[];
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (line.isEmpty) continue;
+
+      // Scene separator (*** or ---)
+      if (RegExp(r'^[\*\-]{3,}$').hasMatch(line)) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Row(
+            children: [
+              Expanded(child: Divider(color: Colors.grey[700], thickness: 0.5)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text('***', style: TextStyle(fontSize: 14, color: Colors.grey[600], letterSpacing: 4)),
+              ),
+              Expanded(child: Divider(color: Colors.grey[700], thickness: 0.5)),
+            ],
+          ),
+        ));
+        continue;
+      }
+
+      // Dialogue lines (starts with — or " or «)
+      final isDialogue = line.startsWith('—') || line.startsWith('"') || line.startsWith('«') || line.startsWith('\u201C');
+      widgets.add(Padding(
+        padding: EdgeInsets.only(
+          bottom: 10,
+          left: isDialogue ? 8 : 0,
+        ),
+        child: Text(
+          line,
+          style: TextStyle(
+            fontSize: fontSize,
+            height: 1.8,
+            fontWeight: FontWeight.w300,
+            fontStyle: isDialogue ? FontStyle.italic : FontStyle.normal,
+            color: isDialogue ? const Color(0xFFD4C5A0) : null,
+          ),
+        ),
+      ));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -487,7 +569,7 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
                     ? Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1, color: const Color(0xFFC9A96E))),
+                          SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1, color: widget.accentColor)),
                           const SizedBox(width: 6),
                           TweenAnimationBuilder<double>(
                             tween: Tween(begin: 0.3, end: 1.0),
@@ -498,14 +580,14 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
                             onEnd: () {},
                             child: Text(
                               'SES OLUŞTURULUYOR',
-                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, letterSpacing: 1, color: const Color(0xFFC9A96E)),
+                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w500, letterSpacing: 1, color: widget.accentColor),
                             ),
                           ),
                         ],
                       )
                     : Text(
                         _isPlaying ? '■ DUR' : '▶ DİNLE',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 1.5, color: _isPlaying ? const Color(0xFFC9A96E) : Colors.grey[600]),
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 1.5, color: _isPlaying ? widget.accentColor : Colors.grey[600]),
                       ),
               ),
             ],
@@ -516,24 +598,21 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
             LinearProgressIndicator(
               value: _duration.inMilliseconds > 0 ? _position.inMilliseconds / _duration.inMilliseconds : 0,
               backgroundColor: Colors.grey[800],
-              color: const Color(0xFFC9A96E),
+              color: widget.accentColor,
               minHeight: 2,
             ),
           ],
 
           const SizedBox(height: 14),
 
-          Text(
-            widget.chapter.content,
-            style: TextStyle(fontSize: context.watch<ThemeProvider>().fontSize, height: 1.8, fontWeight: FontWeight.w300),
-          ),
+          _buildFormattedContent(widget.chapter.content, context.watch<ThemeProvider>().fontSize),
 
           if (widget.chapter.selectedChoice != null) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
               decoration: BoxDecoration(
-                border: Border(left: BorderSide(color: const Color(0xFFC9A96E), width: 2)),
+                border: Border(left: BorderSide(color: widget.accentColor, width: 2)),
               ),
               child: Text(
                 widget.chapter.selectedChoiceText ?? '',
@@ -559,6 +638,68 @@ class _ChapterWidgetState extends State<_ChapterWidget> {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _AgentStatusBar extends StatelessWidget {
+  final String status;
+  final Color accentColor;
+  const _AgentStatusBar({required this.status, required this.accentColor});
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      {'key': 'memory', 'label': 'HAFIZA'},
+      {'key': 'writing', 'label': 'YAZIYOR'},
+      {'key': 'processing', 'label': 'İŞLENİYOR'},
+    ];
+
+    final currentIndex = steps.indexWhere((s) => s['key'] == status);
+
+    return Row(
+      children: List.generate(steps.length * 2 - 1, (i) {
+        if (i.isOdd) {
+          // Connector line
+          final stepBefore = i ~/ 2;
+          final isActive = currentIndex > stepBefore;
+          return Expanded(
+            child: Container(
+              height: 1,
+              color: isActive ? accentColor.withAlpha(120) : Colors.grey[800],
+            ),
+          );
+        }
+
+        final stepIndex = i ~/ 2;
+        final step = steps[stepIndex];
+        final isActive = currentIndex >= stepIndex;
+        final isCurrent = currentIndex == stepIndex;
+
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive ? accentColor : Colors.grey[700],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              step['label']!,
+              style: TextStyle(
+                fontSize: 8,
+                letterSpacing: 1,
+                fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
+                color: isCurrent ? accentColor : isActive ? Colors.grey[500] : Colors.grey[700],
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 }

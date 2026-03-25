@@ -457,6 +457,109 @@ a:hover { color: var(--accent-hover); }
 
 .sf-chapter-text p { margin-bottom: 16px; }
 
+/* Scene separators */
+.sf-scene-separator {
+  display: flex;
+  align-items: center;
+  margin: 28px 0;
+  gap: 16px;
+}
+.sf-scene-separator::before,
+.sf-scene-separator::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.sf-scene-separator span {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.3em;
+}
+
+/* Dialogue lines */
+.sf-dialogue {
+  padding-left: 12px;
+  font-style: italic;
+  color: #D4C5A0;
+}
+
+/* Streaming chapter */
+.sf-streaming-chapter {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.sf-streaming-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sf-streaming-text {
+  font-size: var(--user-font-size, 1.05rem);
+  line-height: 1.85;
+  font-weight: 300;
+  min-height: 60px;
+}
+
+.sf-streaming-text .sf-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Agent status bar */
+.sf-agent-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.sf-agent-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sf-agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s;
+}
+
+.sf-agent-dot.active { background: var(--accent); }
+
+.sf-agent-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: color 0.3s;
+}
+
+.sf-agent-label.active { color: var(--accent); font-weight: 600; }
+
+.sf-agent-connector {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  transition: background 0.3s;
+}
+
+.sf-agent-connector.active { background: var(--accent); opacity: 0.5; }
+
 .sf-selected-choice {
   margin-top: 24px;
   padding: 12px 16px;

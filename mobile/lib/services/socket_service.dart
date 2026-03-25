@@ -41,6 +41,7 @@ class SocketService extends ChangeNotifier {
   final List<void Function(Map<String, dynamic>)> _storyChunkCallbacks = [];
   final List<void Function(Map<String, dynamic>)> _storyCompleteCallbacks = [];
   final List<void Function(Map<String, dynamic>)> _storyErrorCallbacks = [];
+  final List<void Function(Map<String, dynamic>)> _storyStatusCallbacks = [];
 
   void onMessageNew(void Function(Map<String, dynamic>) cb) => _messageNewCallbacks.add(cb);
   void onMessageNotification(void Function(Map<String, dynamic>) cb) => _messageNotifCallbacks.add(cb);
@@ -65,6 +66,7 @@ class SocketService extends ChangeNotifier {
   void onStoryChunk(void Function(Map<String, dynamic>) cb) => _storyChunkCallbacks.add(cb);
   void onStoryComplete(void Function(Map<String, dynamic>) cb) => _storyCompleteCallbacks.add(cb);
   void onStoryError(void Function(Map<String, dynamic>) cb) => _storyErrorCallbacks.add(cb);
+  void onStoryStatus(void Function(Map<String, dynamic>) cb) => _storyStatusCallbacks.add(cb);
 
   void removeMessageNew(void Function(Map<String, dynamic>) cb) => _messageNewCallbacks.remove(cb);
   void removeMessageNotification(void Function(Map<String, dynamic>) cb) => _messageNotifCallbacks.remove(cb);
@@ -89,6 +91,7 @@ class SocketService extends ChangeNotifier {
   void removeStoryChunk(void Function(Map<String, dynamic>) cb) => _storyChunkCallbacks.remove(cb);
   void removeStoryComplete(void Function(Map<String, dynamic>) cb) => _storyCompleteCallbacks.remove(cb);
   void removeStoryError(void Function(Map<String, dynamic>) cb) => _storyErrorCallbacks.remove(cb);
+  void removeStoryStatus(void Function(Map<String, dynamic>) cb) => _storyStatusCallbacks.remove(cb);
 
   void connect(String token) {
     if (_socket?.connected == true) return;
@@ -255,6 +258,11 @@ class SocketService extends ChangeNotifier {
     _socket!.on('story:error', (data) {
       final d = Map<String, dynamic>.from(data as Map);
       for (final cb in _storyErrorCallbacks) { cb(d); }
+    });
+
+    _socket!.on('story:status', (data) {
+      final d = Map<String, dynamic>.from(data as Map);
+      for (final cb in _storyStatusCallbacks) { cb(d); }
     });
   }
 
