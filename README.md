@@ -1,203 +1,371 @@
+<div align="center">
+
 # StoryForge
 
-**AI destekli interaktif hikaye platformu.**
-*AI-powered interactive story platform.*
+**AI-Powered Interactive Storytelling Platform**
+
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Gemini AI](https://img.shields.io/badge/Google%20Gemini-AI-4285F4?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+*Every choice you make writes a different story. No two adventures are ever the same.*
+
+</div>
 
 ---
 
-## 🇹🇷 Türkçe
+## What is StoryForge?
 
-### Nedir?
+StoryForge is a full-stack interactive fiction platform where **AI writes stories shaped by your choices**. Powered by Google's Gemini AI, it generates rich, branching narratives across multiple genres. At the end of each chapter, you're presented with choices — the story evolves based on what you pick.
 
-StoryForge, yapay zekanın hikayeler yazdığı ve senin seçimlerinle şekillendirdiği bir interaktif hikaye platformudur. Her bölümün sonunda sana seçenekler sunulur — hangi yolu seçersen hikaye o yöne evrilir. Hiçbir hikaye birbirinin aynısı değildir.
+The platform features a **web interface** (server-rendered with EJS) and a **cross-platform mobile app** (Flutter), both sharing the same backend and database. Play solo, invite a friend for **co-op storytelling**, or explore stories shared by the community.
 
-Platform hem web arayüzü hem de mobil uygulama olarak çalışır. Web tarafında tarayıcıdan giriş yapıp oynarsın, mobilde ise Android uygulamasıyla aynı hesabınla devam edersin.
+### Key Highlights
 
-### Ne Yapabilirsin?
-
-- **6 farklı türde hikaye başlat:** Fantastik, Korku, Bilim Kurgu, Romantik, Macera, Gizem
-- **Seçimlerle hikayeyi yönlendir:** Her bölüm sonunda 2-4 seçenek, her biri farklı bir yol
-- **Fotoğrafla hikayeyi etkile:** Kameranı aç, çektiğin fotoğraf hikayeye dahil edilsin (multimodal AI)
-- **Hikayeni sesli dinle:** Gemini TTS ile her bölüm sesli okunur (Kore sesi)
-- **Birden fazla hikaye:** İstediğin kadar hikaye başlat, istediğin zaman devam et
-
-### Teknoloji
-
-| Katman | Teknoloji |
-|--------|-----------|
-| Backend | Node.js, Express, EJS |
-| Veritabanı | PostgreSQL 16, Prisma ORM |
-| AI | Google Gemini API (gemini-3-flash-preview + TTS) |
-| Mobil | Flutter (Android) |
-| Altyapı | Docker, Docker Compose |
-| Tasarım | Architectural Minimalism — koyu tema, serif başlıklar, altın aksanlar |
-
-### Mimari
-
-```
-Web Tarayıcı ──► Express (EJS) ──► PostgreSQL
-                      │
-Flutter App ───► REST API ──────► Gemini AI
-```
-
-Web kullanıcıları session-based auth ile, mobil kullanıcılar JWT token ile giriş yapar. Her iki taraf da aynı veritabanını paylaşır. AI hikaye üretimi ve TTS Gemini API üzerinden yapılır.
+- **Multi-Agent AI Pipeline** — Writer Agent generates story content, Consistency Agent validates narrative coherence with RAG Triad anti-hallucination checks
+- **RAG Memory System** — Entity extraction, vector embeddings (pgvector), and contextual retrieval ensure the AI remembers characters, events, and world rules
+- **Real-time Co-op** — Two players take turns writing a story together via Socket.io
+- **Full Social Platform** — Share stories, like, comment, bookmark, add friends, chat in real-time
+- **Gamification** — XP, levels, 24 achievements, daily quests, reading streaks
 
 ---
 
-## 🇬🇧 English
+## Features
 
-### What is it?
+### Story Engine
+- **7 genres** — Fantasy, Sci-Fi, Horror, Romance, Mystery, Adventure, Historical
+- **Branching narratives** — 2-4 choices per chapter, story tree visualization
+- **Photo influence** — Take a photo and the AI weaves it into the narrative (multimodal)
+- **Text-to-Speech** — Listen to chapters read aloud via Gemini TTS
+- **Story Codex** — Encyclopedia of characters, lore, relationships, and timeline
+- **PDF Export** — Download completed stories as PDF
+- **Dynamic context window** — Adapts AI context based on story length
+- **Deep & quick summaries** — Automatic chapter summaries for long stories
 
-StoryForge is an interactive story platform where AI writes stories shaped by your choices. At the end of each chapter, you're presented with options — the story evolves based on what you pick. No two stories are ever the same.
+### Social & Multiplayer
+- **Public gallery** — Browse and discover community stories
+- **Friend feed** — See stories from your friends
+- **Real-time chat** — 1-on-1 messaging with typing indicators and read receipts
+- **Co-op mode** — Turn-based collaborative storytelling with a friend
+- **Likes, comments, bookmarks** — Full social engagement
 
-The platform runs as both a web interface and a mobile app. Log in from a browser on the web side, or continue with the same account on Android.
+### Gamification
+- **XP & Levels** — Earn XP for reading, completing stories, and social actions
+- **24 Achievements** — Unlock milestones as you play
+- **Daily Quests** — 3 random quests per day across 7 quest types
+- **Reading Streaks** — Track consecutive days of reading
 
-### What Can You Do?
+### Technical
+- **Dual authentication** — Session-based (web) + JWT (mobile)
+- **Multi-agent AI pipeline** — Writer → Consistency → Retry with RAG Triad validation
+- **Vector search** — pgvector HNSW indexes for semantic entity/event retrieval
+- **Redis caching** — Entity, lore, relationship, and summary cache layers
+- **Real-time events** — Socket.io for streaming, co-op, chat, notifications
+- **Push notifications** — Firebase Cloud Messaging (optional)
+- **Offline support** — Hive local cache with connectivity monitoring (mobile)
+- **i18n** — Turkish and English localization
 
-- **Start stories in 6 genres:** Fantasy, Horror, Sci-Fi, Romance, Adventure, Mystery
-- **Shape the story with choices:** 2-4 options at the end of each chapter, each leading somewhere different
-- **Influence the story with photos:** Open your camera, and the photo gets woven into the narrative (multimodal AI)
-- **Listen to your story:** Every chapter is read aloud via Gemini TTS (Kore voice)
-- **Multiple stories:** Start as many stories as you want, continue any time
+---
 
-### Tech Stack
+## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Backend | Node.js, Express, EJS |
-| Database | PostgreSQL 16, Prisma ORM |
-| AI | Google Gemini API (gemini-3-flash-preview + TTS) |
-| Mobile | Flutter (Android) |
-| Infrastructure | Docker, Docker Compose |
-| Design | Architectural Minimalism — dark theme, serif headings, gold accents |
-
-### Architecture
-
-```
-Web Browser ───► Express (EJS) ──► PostgreSQL
-                      │
-Flutter App ───► REST API ──────► Gemini AI
-```
-
-Web users authenticate via sessions, mobile users via JWT. Both share the same database. Story generation and TTS run through the Gemini API.
+|-------|------------|
+| **Backend** | Node.js, Express.js, EJS templates |
+| **Database** | PostgreSQL 16 + pgvector, Prisma ORM |
+| **Cache** | Redis 7 (sessions, entity cache, rate limiting) |
+| **AI** | Google Gemini API (`gemini-3-flash-preview` + `gemini-embedding-2-preview`) |
+| **Real-time** | Socket.io |
+| **Mobile** | Flutter (Dart 3), Provider, Dio, Hive |
+| **Push** | Firebase Cloud Messaging |
+| **Infrastructure** | Docker Compose, Nginx, Cloudflare |
+| **Testing** | Jest (backend), flutter_test (mobile) |
 
 ---
 
-## Hızlı Başlangıç / Quick Start
+## Architecture
 
-### Gereksinimler / Requirements
+```
+┌──────────────────────────────────────────────────────────┐
+│                        Clients                            │
+│   ┌─────────────┐   ┌──────────────┐   ┌─────────────┐  │
+│   │ Web (EJS)   │   │ Flutter App  │   │ Socket.io   │  │
+│   │ Session Auth│   │ JWT Auth     │   │ Real-time   │  │
+│   └──────┬──────┘   └──────┬───────┘   └──────┬──────┘  │
+└──────────┼─────────────────┼──────────────────┼──────────┘
+           │                 │                  │
+           ▼                 ▼                  ▼
+┌──────────────────────────────────────────────────────────┐
+│            Express.js Backend (Port 3004)                 │
+│                                                           │
+│  Middleware: Helmet → HPP → Rate Limiter → CORS → Auth   │
+│                                                           │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐ │
+│  │ Controllers │  │  Services  │  │  AI Agent Pipeline │ │
+│  │ (3 files)   │  │ (20 files) │  │  Writer → Check →  │ │
+│  │             │  │            │  │  Retry             │ │
+│  └─────┬──────┘  └─────┬──────┘  └─────────┬──────────┘ │
+│        └────────────────┼───────────────────┘            │
+│                         ▼                                │
+│                    Prisma ORM                            │
+└─────────────────────────┬────────────────────────────────┘
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+   ┌────────────┐  ┌────────────┐  ┌────────────┐
+   │ PostgreSQL │  │   Redis    │  │ Gemini API │
+   │ + pgvector │  │  (Cache)   │  │   (AI)     │
+   └────────────┘  └────────────┘  └────────────┘
+```
 
-- Docker & Docker Compose
-- Google Gemini API Key → [aistudio.google.com](https://aistudio.google.com)
-- (Mobil için) Flutter SDK
+### AI Pipeline Detail
 
-### 1. Klonla / Clone
+```
+User Choice → RAG Context Retrieval → Writer Agent (temp 0.9)
+                                           │
+                                           ▼
+                                    Consistency Agent (temp 0.1)
+                                    ├── Groundedness (40%)
+                                    ├── Temporal Consistency (35%)
+                                    └── Context Relevance (25%)
+                                           │
+                                      Pass? ──► New Chapter
+                                      Fail? ──► Retry (max 1)
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Docker** & **Docker Compose**
+- **Google Gemini API Key** → [aistudio.google.com](https://aistudio.google.com)
+- **Flutter SDK** (only if building the mobile app)
+
+### 1. Clone
 
 ```bash
-git clone https://github.com/KULLANICI_ADIN/storyforge.git
+git clone https://github.com/bcsakalar/storyforge.git
 cd storyforge
 ```
 
-### 2. Ortam Değişkenleri / Environment Variables
+### 2. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` dosyasını düzenle / Edit the `.env` file:
+Edit `.env` with your values:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
+POSTGRES_PASSWORD=your_secure_db_password
 SESSION_SECRET=random_64_char_hex_string
 JWT_SECRET=another_random_64_char_hex_string
-PORT=3001
 NODE_ENV=development
-DATABASE_URL=postgresql://storyforge:SfStr0ngPwd2026x@db:5432/storyforge?schema=public
 ```
 
-> Secret üretmek için / Generate secrets: `openssl rand -hex 32`
+> Generate secrets with: `openssl rand -hex 32`
 
-### 3. Çalıştır / Run
+### 3. Run with Docker
 
 ```bash
 docker-compose up -d
 ```
 
-İlk çalıştırmada migration:
+Run database migrations on first start:
 
 ```bash
 docker exec -it storyforge-backend-1 npx prisma migrate deploy
 ```
 
-Tarayıcıda aç / Open in browser: `http://localhost:3001`
+Open in browser: **http://localhost:3004**
 
-### 4. Mobil / Mobile (opsiyonel)
+### 4. Mobile App (Optional)
 
 ```bash
 cd mobile
 flutter pub get
+flutter run
+```
+
+Build release APK:
+
+```bash
 flutter build apk --release
 ```
 
-APK: `mobile/build/app/outputs/flutter-apk/app-release.apk`
-
-> Mobil uygulamada login ekranındaki ⚙ butonundan sunucu adresini ayarlayabilirsin.
+> Use the ⚙ icon on the login screen to configure the server address.
 
 ---
 
-## Proje Yapısı / Project Structure
+## Project Structure
 
 ```
 storyforge/
 ├── backend/
-│   ├── prisma/              # Veritabanı şeması ve migration'lar
+│   ├── prisma/                 # Database schema & migrations (31 models)
 │   ├── src/
-│   │   ├── config/          # DB, session, Gemini yapılandırması
-│   │   ├── controllers/     # İş mantığı
-│   │   ├── middleware/       # Auth, error handler
-│   │   ├── routes/           # Web ve API rotaları
-│   │   ├── services/         # Gemini AI, hikaye servisi
-│   │   ├── views/            # EJS şablonları
-│   │   └── public/           # CSS, statik dosyalar
+│   │   ├── config/             # DB, Redis, Gemini, Socket.io, Firebase config
+│   │   ├── controllers/        # Auth, Story, API controllers
+│   │   ├── middleware/          # Auth, error handler, sanitize, rate limiting
+│   │   ├── routes/             # Web routes + REST API routes
+│   │   ├── services/           # 20 service modules (AI, social, gamification...)
+│   │   ├── views/              # 17 EJS templates (web interface)
+│   │   └── public/             # Static assets (CSS, JS)
+│   ├── __tests__/              # Jest test suites
 │   ├── Dockerfile
 │   └── package.json
 ├── mobile/
 │   └── lib/
-│       ├── models/           # Veri modelleri
-│       ├── providers/        # State management
-│       ├── screens/          # Ekranlar
-│       ├── services/         # API servisi
-│       └── widgets/          # Bileşenler
+│       ├── models/             # Data models
+│       ├── providers/          # 8 Provider state managers
+│       ├── screens/            # 21 screens
+│       ├── services/           # 18 service modules
+│       ├── widgets/            # Reusable UI components
+│       └── l10n/               # Localization (TR/EN)
+├── knowledge/                  # AI agent knowledge base
 ├── docker-compose.yml
 ├── .env.example
-├── DEPLOY.md                 # VPS deployment rehberi
-└── README.md
+└── DEPLOY.md                   # VPS deployment guide
 ```
 
 ---
 
-## API Endpoints
+## API Reference
 
-| Method | Endpoint | Açıklama |
-|--------|----------|----------|
-| POST | `/api/auth/register` | Kayıt ol |
-| POST | `/api/auth/login` | Giriş yap |
-| GET | `/api/auth/me` | Kullanıcı bilgisi |
-| GET | `/api/genres` | Tür listesi |
-| GET | `/api/stories` | Hikayeleri listele |
-| POST | `/api/stories` | Yeni hikaye |
-| GET | `/api/stories/:id` | Hikaye detayı |
-| POST | `/api/stories/:id/choose` | Seçim yap |
-| DELETE | `/api/stories/:id` | Hikaye sil |
-| POST | `/api/stories/:id/chapters/:num/tts` | Sesli okuma |
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/register` | Create account |
+| `POST` | `/api/auth/login` | Login (returns JWT) |
+| `GET` | `/api/auth/me` | Get current user |
+
+### Stories
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/genres` | List available genres |
+| `GET` | `/api/stories` | List user's stories |
+| `POST` | `/api/stories` | Create new story |
+| `GET` | `/api/stories/:id` | Get story with chapters |
+| `POST` | `/api/stories/:id/choose` | Make a choice (continue story) |
+| `POST` | `/api/stories/:id/complete` | Complete a story |
+| `POST` | `/api/stories/:id/branch/:chapterId` | Branch from a chapter |
+| `GET` | `/api/stories/:id/tree` | Get story decision tree |
+| `DELETE` | `/api/stories/:id` | Delete story |
+
+### Story Features
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/stories/:id/chapters/:num/tts` | Text-to-speech for chapter |
+| `GET` | `/api/stories/:id/codex` | Story codex (entities, lore) |
+| `GET` | `/api/stories/:id/timeline` | Story event timeline |
+| `POST` | `/api/stories/:id/export/pdf` | Export story as PDF |
+
+### Social
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/stories/:id/share` | Share story publicly |
+| `GET` | `/api/shared/gallery` | Browse public stories |
+| `GET` | `/api/shared/feed` | Friend feed |
+| `POST` | `/api/shared/:id/like` | Toggle like |
+| `POST` | `/api/shared/:id/comment` | Add comment |
+| `POST` | `/api/shared/:id/bookmark` | Toggle bookmark |
+
+### Friends & Messaging
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/friends` | List friends |
+| `POST` | `/api/friends/request` | Send friend request |
+| `POST` | `/api/friends/:id/accept` | Accept request |
+| `GET` | `/api/messages/:friendId` | Get conversation |
+| `POST` | `/api/messages/:friendId` | Send message |
+
+### Gamification
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/stats` | Reading statistics |
+| `GET` | `/api/achievements` | User achievements |
+| `GET` | `/api/quests` | Daily quests |
 
 ---
 
-## Lisans / License
+## Running Tests
 
-MIT
+### Backend
+
+```bash
+cd backend
+npm test
+```
+
+### Mobile
+
+```bash
+cd mobile
+flutter test
+```
 
 ---
+
+## Deployment
+
+See [DEPLOY.md](DEPLOY.md) for a complete VPS deployment guide with Nginx and Cloudflare.
+
+Quick production setup:
+
+```bash
+# Set NODE_ENV=production in .env
+docker-compose up -d --build
+docker exec -it storyforge-backend-1 npx prisma migrate deploy
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Yes | Google Gemini API key |
+| `POSTGRES_PASSWORD` | Yes | PostgreSQL password |
+| `SESSION_SECRET` | Yes | Session encryption key |
+| `JWT_SECRET` | Yes | JWT signing secret |
+| `NODE_ENV` | No | `development` or `production` (default: `production`) |
+| `PORT` | No | Server port (default: `3004`) |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | No | Path to Firebase service account JSON |
+| `FIREBASE_PROJECT_ID` | No | Firebase project ID |
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feat/amazing-feature`)
+3. Commit your changes (`feat: add amazing feature`)
+4. Push to the branch (`git push origin feat/amazing-feature`)
+5. Open a Pull Request
+
+Please follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+---
+
+<div align="center">
+
+Built with Gemini AI, Node.js, Flutter, and PostgreSQL
+
+**[bcsakalar](https://github.com/bcsakalar)**
+
+</div>
 
 *Built with Gemini AI, Node.js, Flutter & a love for stories.*
 
